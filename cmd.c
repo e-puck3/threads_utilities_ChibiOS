@@ -1263,8 +1263,6 @@ const ShellCommand shell_commands[] = {
     {"ml_stop",cmd_melody_stop},
     {"mem", cmd_mem},
     {"threads", cmd_threads},
-    {"mem", cmd_mem},
-    {"threads", cmd_threads},
     {"threads_stat", cmd_threads_stat},
     {"test", cmd_test},
     {"clock", cmd_readclock},

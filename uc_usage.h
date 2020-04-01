@@ -16,3 +16,5 @@
  * @param device 	Pointer to the output
  */	
 void printUcUsage(BaseSequentialStream* out);
+
+void printStatThreads(BaseSequentialStream *out);

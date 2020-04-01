@@ -22,6 +22,7 @@
 #include <fat.h>
 #include <audio/play_sound_file.h>
 #include <audio/play_melody.h>
+#include "uc_usage.h"
 
 #define TEST_WA_SIZE        THD_WORKING_AREA_SIZE(256)
 #define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
@@ -382,6 +383,11 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[])
                  states[tp->p_state]);
         tp = chRegNextThread(tp);
     } while (tp != NULL);
+}
+
+static void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    printStatThreads(chp);
 }
 
 static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[])
@@ -1259,6 +1265,7 @@ const ShellCommand shell_commands[] = {
     {"threads", cmd_threads},
     {"mem", cmd_mem},
     {"threads", cmd_threads},
+    {"threads_stat", cmd_threads_stat},
     {"test", cmd_test},
     {"clock", cmd_readclock},
     {"sqrt", cmd_sqrt},

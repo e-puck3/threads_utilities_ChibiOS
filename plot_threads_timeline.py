@@ -143,7 +143,8 @@ port.close()
 print('Port {} closed'.format(sys.argv[1]))
 
 # Declaring a figure "gnt" 
-fig, gnt = plt.subplots() 
+# figsize is in inch
+fig, gnt = plt.subplots(figsize=(15, 10), dpi=90) 
 
 # Setting Y-axis limits 
 #gnt.set_ylim(0, 30) 

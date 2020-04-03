@@ -364,6 +364,36 @@ static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[])
     chprintf(chp, "heap free total    : %u bytes\r\n", size);
 }
 
+static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+    thread_t *tp;
+
+    if (argc != 1) {
+        chprintf(chp, "Usage: threads_timeline numberOfTheThread\r\n");
+        return;
+    }
+
+    uint8_t n = atoi(argv[0]);
+    tp = chRegFirstThread();
+    while(n){
+        tp = chRegNextThread(tp);
+        n--;
+        if(tp == NULL){
+            chprintf(chp, "This thread doesn't exist\r\n");
+            return;
+        }
+    }
+   
+    chprintf(chp, "Thread : %s\r\n",tp->p_name); 
+
+
+    for(uint16_t i = 0; i < 250; i++){
+        chprintf(chp, "%d\r\n",tp->log[i]); 
+    }
+}
+
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[])
 {
     static const char *states[] = {CH_STATE_NAMES};
@@ -387,6 +417,8 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[])
 
 static void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
     printStatThreads(chp);
 }
 
@@ -1262,6 +1294,7 @@ const ShellCommand shell_commands[] = {
     {"ml_play",cmd_melody_play},
     {"ml_stop",cmd_melody_stop},
     {"mem", cmd_mem},
+    {"threads_timeline",cmd_threads_timeline},
     {"threads", cmd_threads},
     {"threads_stat", cmd_threads_stat},
     {"test", cmd_test},

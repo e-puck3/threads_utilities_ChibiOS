@@ -57,15 +57,25 @@ void printStatThreads(BaseSequentialStream *out)
 	chprintf(out, "--------------------------------------------------------------------\r\n");
 
 	tp = chRegFirstThread();
+	//special print for the main thread because apparently its memory is handled differently
+	chprintf(out, "0x%08lx 0x%08lx    ???    ???  ??? %4lu %9s %12s\r\n", (uint32_t)tp,                                                                                           
+																		 (uint32_t)tp->p_ctx.r13,
+			                                                             (uint32_t)tp->p_prio,
+			                                                             states[tp->p_state],
+			                                                             tp->p_name == NULL ? "" : tp->p_name);
+
+	tp = chRegNextThread(tp);
 	do {
 		n = 0;
 
 		uint8_t *begin = (uint8_t *)tp;
 		uint8_t *end = (uint8_t *)tp->p_ctx.r13;
-		sz = end - begin;
+		sz = end - begin - sizeof(tp->log);	//removes the log tab as well
 
 		while(begin < end)
 		if(*begin++ != CH_DBG_STACK_FILL_VALUE) ++n;
+
+		n -= sizeof(tp->log); //removes the log tab as well
 
 		used_pct = (n * 100) / sz;
 

@@ -2,6 +2,8 @@
 # import matplotlib
 # matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt 
+import numpy as np
+import random
 import serial
 import struct
 import sys
@@ -41,9 +43,10 @@ def receive_text(echo):
 
 	return text_lines
 
-def process_threads_count_cmd(lines):
+def process_threads_count_cmd(lines, echo):
 	nb = int(lines[1][len('Number of threads : '):])
-	print('There are {} threads alive'.format(nb))
+	if(echo == True):
+		print('There are {} threads alive'.format(nb))
 
 	return nb
 
@@ -90,7 +93,6 @@ def get_thread_prio(thread):
 
 def sort_threads_by_prio():
 	threads.sort(key=get_thread_prio)
-	print(threads)
 
 #test if the serial port as been given as argument in the terminal
 if len(sys.argv) == 1:
@@ -114,9 +116,9 @@ while(port.inWaiting()):
 	time.sleep(0.1)
 
 #sends command "threads_count"
-send_command('threads_count', True)
+send_command('threads_count', False)
 rcv_lines = receive_text(False)
-threads_count = process_threads_count_cmd(rcv_lines)
+threads_count = process_threads_count_cmd(rcv_lines, True)
 
 #sends command "threads_timeline" threads_count times to recover all the threads logs
 for i in range(threads_count):
@@ -129,10 +131,12 @@ sort_threads_by_prio()
 for i in range(threads_count):
 	threads_name_list.append(threads[i]['name'])
 
-send_command('threads_stat', True)
+send_command('threads_stat', False)
+print('Stack usage of the running threads')
 receive_text(True)
 
-send_command('threads_uc', True)
+send_command('threads_uc', False)
+print('Computation time taken by the running threads')
 receive_text(True)
 
 port.close()
@@ -159,9 +163,12 @@ gnt.set_yticklabels(threads_name_list)
 # Setting graph attribute 
 gnt.grid(b = True, which='both') 
 
+colors=['red','green','blue','cyan','magenta','yellow','black']
+
 for i in range(threads_count):
 	# Declaring a set of br in the timeline
-	gnt.broken_barh(threads[i]['values'], ((START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='orange') 
+	color = random.randrange(0,len(colors),1)
+	gnt.broken_barh(threads[i]['values'], ((START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2, RECT_HEIGHT), facecolors=colors[color]) 
 # Declaring a set of br in the timeline
 #gnt.broken_barh([(1000,0)], (20 - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='red') 
 

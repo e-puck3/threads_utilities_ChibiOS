@@ -26,6 +26,7 @@
 
 #define TEST_WA_SIZE        THD_WORKING_AREA_SIZE(256)
 #define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
+static THD_WORKING_AREA(shell_thd_wa, 2048);
 
 /*
  * SDC related variables and definitions.
@@ -1365,6 +1366,7 @@ const ShellCommand shell_commands[] = {
 static THD_FUNCTION(shell_spawn_thd, p)
 {
     (void) p;
+    chRegSetThreadName(__FUNCTION__);
     thread_t *shelltp = NULL;
 
     static const ShellConfig shell_cfg = {
@@ -1377,7 +1379,7 @@ static THD_FUNCTION(shell_spawn_thd, p)
     while (TRUE) {
         if (!shelltp) {
             if (SDU1.config->usbp->state == USB_ACTIVE) {
-                shelltp = shellCreate(&shell_cfg, SHELL_WA_SIZE, NORMALPRIO);
+                shelltp = shellCreateStatic(&shell_cfg, shell_thd_wa, sizeof(shell_thd_wa), NORMALPRIO);
             }
         } else {
             if (chThdTerminatedX(shelltp)) {
@@ -1392,7 +1394,7 @@ static THD_FUNCTION(shell_spawn_thd, p)
 
 void shell_start(void)
 {
-    static THD_WORKING_AREA(wa, 2048);
+    static THD_WORKING_AREA(wa, 256);
 
     chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, shell_spawn_thd, NULL);
 }

@@ -32,14 +32,14 @@ void printUcUsage(BaseSequentialStream* out) {
 	//computes the percentage of time used by each thread
 	do {
 		tmp1 = (uint16_t)(tp->p_stats.cumulative*10000/sum);
-		chprintf(out, "%12s %u.%u%%\r\n", tp->p_name, tmp1/100, tmp1%100);
+		chprintf(out, "%25s          %u.%u%%\r\n", tp->p_name, tmp1/100, tmp1%100);
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);
 
 	tmp1 = (uint16_t)(ch.kernel_stats.m_crit_thd.cumulative*10000/sum);
 	tmp2 = (uint16_t)(ch.kernel_stats.m_crit_isr.cumulative*10000/sum);
 
-	chprintf(out, "critical thd:%u.%u%%   critical isr:%u.%u%%\r\n",
+	chprintf(out, "\r\n            critical thd:%u.%u%%   critical isr:%u.%u%%\r\n",
 	  tmp1/100, tmp1%100,tmp2/100, tmp2%100);
 	chprintf(out, "\r\n");
 }

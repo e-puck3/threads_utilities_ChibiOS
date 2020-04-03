@@ -7,8 +7,90 @@ import struct
 import sys
 import time
 
+
+START_Y_TICKS = 10
+SPACING_Y_TICKS = 10
 RECT_HEIGHT = 10
 MINIMUM_THREAD_DURATION = 0.5
+
+threads = []
+threads_count = 0
+threads_name_list = []
+
+def send_command(command, echo):
+	#sends command "threads_count"
+	if(echo == True):
+		print('sent :',command)
+
+	port.write(bytes(command, 'utf-8')+b'\r\n')
+	time.sleep(0.1)
+
+
+def receive_text(echo):
+	rcv = bytearray([])
+	while(port.inWaiting()):
+		rcv += port.read()
+
+	#converts the bytearray into a string
+	text_rcv = rcv.decode("utf-8")
+	#Splits every line into an array position 
+	text_lines = text_rcv.split('\r\n')
+
+	if(echo == True):
+		print(text_rcv)
+
+	return text_lines
+
+def process_threads_count_cmd(lines):
+	nb = int(lines[1][len('Number of threads : '):])
+	print('There are {} threads alive'.format(nb))
+
+	return nb
+
+def process_threads_timeline_cmd(lines):
+	#extracts the name of the thread
+	name = lines[1][len('Thread : '):]
+	#extracts the prio of the tread
+	prio = int(lines[2][len('Prio : '):])
+
+	#extracts the values
+	#len(lines)-1 to not take the "ch>" at the end
+	values = []
+	for i in range(3, len(lines)-1):
+		values.append(int(lines[i]))
+
+	#removes the first entry if 0
+	if(values[0] == 0):
+		values.pop(0)
+
+	#removes the last entries if -1
+	#happens if the log is not full
+	while(values[-1] == -1):
+		values.pop(-1)
+
+	#removes the last value if the number of value is odd
+	#because we need a pair of values
+	if(len(values) % 2):
+		values.pop(-1)
+
+	#adds a thread to the threads list
+	threads.append({'name': name,'prio': prio, 'values': []})
+
+	#adds the values by pair to the last thread (aka the one we just created)
+	for i in range(0, len(values), 2):
+		#the format for broken_barh needs to be (begin, width)
+		width = values[i+1] - values[i]
+		if(width <  MINIMUM_THREAD_DURATION):
+			threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
+		else:
+			threads[-1]['values'].append((values[i], width))
+
+def get_thread_prio(thread):
+	return thread['prio']
+
+def sort_threads_by_prio():
+	threads.sort(key=get_thread_prio)
+	print(threads)
 
 #test if the serial port as been given as argument in the terminal
 if len(sys.argv) == 1:
@@ -17,7 +99,7 @@ if len(sys.argv) == 1:
 
 
 try:
-	port = serial.Serial(sys.argv[1], timeout=0.5)
+	port = serial.Serial(sys.argv[1], timeout=0.1)
 except:
 	print('Cannot connect to the e-puck2')
 	sys.exit(0)
@@ -31,86 +113,55 @@ while(port.inWaiting()):
 	port.read()
 	time.sleep(0.1)
 
-print('threads_timeline')
-port.write(b'threads_timeline 0\r\n')
+#sends command "threads_count"
+send_command('threads_count', True)
+rcv_lines = receive_text(False)
+threads_count = process_threads_count_cmd(rcv_lines)
 
+#sends command "threads_timeline" threads_count times to recover all the threads logs
+for i in range(threads_count):
+	send_command('threads_timeline ' + str(i), True)
+	rcv_lines = receive_text(False)
+	process_threads_timeline_cmd(rcv_lines)
 
-time.sleep(0.5)
+sort_threads_by_prio()
 
-rcv = bytearray([])
+for i in range(threads_count):
+	threads_name_list.append(threads[i]['name'])
 
-while(port.inWaiting()):
-	rcv += port.read()
+send_command('threads_stat', True)
+receive_text(True)
 
-#converts the bytearray into a string
-text_rcv = rcv.decode("utf-8")
+send_command('threads_uc', True)
+receive_text(True)
 
-#Splits every line into an array position 
-text_lines = text_rcv.split('\r\n')
-
-print(text_lines)	
-
-threads = []
-
-#extracts the name of the thread
-name = text_lines[1][len('Thread : '):]
-#extracts the prio of the tread
-prio = int(text_lines[2][len('Prio : '):])
-
-#extracts the values
-# the "ch>" at the end
-#len(text_lines)-1 to not take the "ch>" at the end
-values = []
-for i in range(3, len(text_lines)-1):
-	values.append(int(text_lines[i]))
-
-#removes the first entry if 0
-if(values[0] == 0):
-	values.pop(0)
-
-print(values)
-
-#removes the last value if the number of value is odd
-#because we need a pair of values
-if(len(values) % 2):
-	values.pop(-1)
-
-#adds a thread to the threads list
-threads.append({'name': name,'prio': prio, 'values': []})
-
-#adds the values by pair to the thread
-for i in range(0, len(values), 2):
-	#the format for broken_barh needs to be (begin, width)
-	width = values[i+1] - values[i]
-	if(width <  MINIMUM_THREAD_DURATION):
-		threads[0]['values'].append((values[i], MINIMUM_THREAD_DURATION))
-	else:
-		threads[0]['values'].append((values[i], width))
-
+port.close()
+print('Port {} closed'.format(sys.argv[1]))
 
 # Declaring a figure "gnt" 
 fig, gnt = plt.subplots() 
 
 # Setting Y-axis limits 
-gnt.set_ylim(0, 30) 
+#gnt.set_ylim(0, 30) 
 
 # # Setting X-axis limits 
-# gnt.set_xlim(0, 160) 
+gnt.set_xlim(900, 3000) 
 
 # Setting labels for x-axis and y-axis 
 gnt.set_xlabel('milliseconds since boot') 
 gnt.set_ylabel('Threads') 
 
 # Setting ticks on y-axis 
-gnt.set_yticks([10, 20]) 
+gnt.set_yticks(range(START_Y_TICKS, (threads_count+1)*SPACING_Y_TICKS, SPACING_Y_TICKS)) 
 # Labelling tickes of y-axis 
-gnt.set_yticklabels([threads[0]['name'],'autre']) 
+gnt.set_yticklabels(threads_name_list) 
 
 # Setting graph attribute 
 gnt.grid(b = True, which='both') 
 
-# Declaring a set of br in the timeline
-gnt.broken_barh(threads[0]['values'], (10 - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='orange') 
+for i in range(threads_count):
+	# Declaring a set of br in the timeline
+	gnt.broken_barh(threads[i]['values'], ((START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='orange') 
 # Declaring a set of br in the timeline
 #gnt.broken_barh([(1000,0)], (20 - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='red') 
 

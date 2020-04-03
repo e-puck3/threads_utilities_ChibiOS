@@ -364,6 +364,28 @@ static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[])
     chprintf(chp, "heap free total    : %u bytes\r\n", size);
 }
 
+static void cmd_threads_count(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+    thread_t *tp;
+
+    if (argc > 0) {
+        chprintf(chp, "Usage: threads_count\r\n");
+        return;
+    }
+
+    uint16_t n = 1;
+    tp = chRegFirstThread();
+    tp = chRegNextThread(tp);
+    while(tp != NULL){
+        n++;
+        tp = chRegNextThread(tp);
+    }
+    
+    chprintf(chp, "Number of threads : %d\r\n",n); 
+}
+
 static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
 {   
     (void)argc;
@@ -387,6 +409,7 @@ static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv
     }
    
     chprintf(chp, "Thread : %s\r\n",tp->p_name); 
+    chprintf(chp, "Prio : %d\r\n",tp->p_prio); 
 
 
     for(uint16_t i = 0; i < 250; i++){
@@ -420,6 +443,13 @@ static void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])
     (void)argc;
     (void)argv;
     printStatThreads(chp);
+}
+
+static void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+    printUcUsage(chp);
 }
 
 static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[])
@@ -1294,9 +1324,11 @@ const ShellCommand shell_commands[] = {
     {"ml_play",cmd_melody_play},
     {"ml_stop",cmd_melody_stop},
     {"mem", cmd_mem},
+    {"threads_count",cmd_threads_count},
     {"threads_timeline",cmd_threads_timeline},
     {"threads", cmd_threads},
     {"threads_stat", cmd_threads_stat},
+    {"threads_uc", cmd_threads_uc},
     {"test", cmd_test},
     {"clock", cmd_readclock},
     {"sqrt", cmd_sqrt},

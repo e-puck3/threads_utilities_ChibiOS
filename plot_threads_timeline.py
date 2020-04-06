@@ -164,7 +164,7 @@ gnt.set_yticklabels(threads_name_list)
 # Setting graph attribute 
 gnt.grid(b = True, which='both') 
 
-colors=['red','green','blue','cyan','magenta','yellow','black']
+colors=['red','green','blue','cyan','magenta','black']
 
 for i in range(threads_count):
 	# Declaring a set of br in the timeline

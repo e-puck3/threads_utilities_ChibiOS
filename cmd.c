@@ -392,6 +392,8 @@ static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv
     (void)argc;
     (void)argv;
     thread_t *tp;
+    extern uint32_t threads_log_in[3000];
+    extern uint32_t threads_log_out[3000];
 
     if (argc != 1) {
         chprintf(chp, "Usage: threads_timeline numberOfTheThread\r\n");
@@ -399,6 +401,7 @@ static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv
     }
 
     uint8_t n = atoi(argv[0]);
+    uint8_t id = n;
     tp = chRegFirstThread();
     while(n){
         tp = chRegNextThread(tp);
@@ -412,9 +415,17 @@ static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv
     chprintf(chp, "Thread : %s\r\n",tp->p_name); 
     chprintf(chp, "Prio : %d\r\n",tp->p_prio); 
 
-
-    for(uint16_t i = 0; i < 500; i++){
-        chprintf(chp, "%d\r\n",tp->log[i]); 
+    uint16_t time_in = 0;
+    uint16_t time_out = 0;
+    for(uint16_t i = 0; i < 3000; i++){
+        time_in = (threads_log_in[i] & (1 << id));
+        time_out = (threads_log_out[i] & (1 << id));
+        if(time_in){
+            chprintf(chp, "%d\r\n", i);
+        } 
+        if(time_out){
+            chprintf(chp, "%d\r\n", i);
+        } 
     }
 }
 

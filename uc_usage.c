@@ -70,12 +70,10 @@ void printStatThreads(BaseSequentialStream *out)
 
 		uint8_t *begin = (uint8_t *)tp;
 		uint8_t *end = (uint8_t *)tp->p_ctx.r13;
-		sz = end - begin - sizeof(tp->log);	//removes the log tab as well
+		sz = end - begin;
 
 		while(begin < end)
 		if(*begin++ != CH_DBG_STACK_FILL_VALUE) ++n;
-
-		n -= sizeof(tp->log); //removes the log tab as well
 
 		used_pct = (n * 100) / sz;
 

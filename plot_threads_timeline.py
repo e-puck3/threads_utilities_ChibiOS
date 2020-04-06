@@ -9,7 +9,6 @@ import struct
 import sys
 import time
 
-UINT16_t = 65535
 
 START_Y_TICKS = 10
 SPACING_Y_TICKS = 10
@@ -63,10 +62,6 @@ def process_threads_timeline_cmd(lines):
 	for i in range(3, len(lines)-1):
 		values.append(int(lines[i]))
 
-	#removes the first entry if 0
-	if(values[0] == 0):
-		values.pop(0)
-
 	#removes the last entries if -1
 	#happens if the log is not full
 	while(values[-1] == -1):
@@ -80,21 +75,14 @@ def process_threads_timeline_cmd(lines):
 	#adds a thread to the threads list
 	threads.append({'name': name,'prio': prio, 'values': []})
 
-	overflow = 0
-	last_value = 0
 	#adds the values by pair to the last thread (aka the one we just created)
 	for i in range(0, len(values), 2):
 		#the format for broken_barh needs to be (begin, width)
 		width = values[i+1] - values[i]
-		#we store the values as uint16_t to spare some ram on the MCU 
-		#so we need to detect the overflow and correct it for the timeline graph
-		if(values[i] < last_value):
-			overflow = overflow + 1
-		last_value = values[i+1]
 		if(width <  MINIMUM_THREAD_DURATION):
-			threads[-1]['values'].append((values[i]+overflow*UINT16_t, MINIMUM_THREAD_DURATION))
+			threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
 		else:
-			threads[-1]['values'].append((values[i]+overflow*UINT16_t, width))
+			threads[-1]['values'].append((values[i], width))
 
 def get_thread_prio(thread):
 	return thread['prio']
@@ -160,7 +148,7 @@ plt.subplots_adjust(right=0.97)
 #gnt.set_ylim(0, 30) 
 
 # # Setting X-axis limits 
-gnt.set_xlim(900, 3000) 
+# gnt.set_xlim(0, 3000) 
 
 # Setting labels for x-axis and y-axis 
 gnt.set_xlabel('milliseconds since boot') 

@@ -410,8 +410,6 @@
  * @details User fields added to the end of the @p thread_t structure.
  */
 #define CH_CFG_THREAD_EXTRA_FIELDS                                          \
-    uint16_t log[500];                                                     \
-    uint16_t log_index;                                                     \
     /* Add threads custom fields here.*/
 
 /**
@@ -423,7 +421,6 @@
  */
 #define CH_CFG_THREAD_INIT_HOOK(tp) {                                       \
         /* Add threads initialization code here.*/                                \
-        tp->log_index = 0;                                                      \
 }
 
 /**
@@ -444,11 +441,33 @@
  */
 #define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
         /* Context switch code here.*/                                            \
-        if(otp->log_index < 500 ){                                                  \
-            otp->log[otp->log_index++] = chVTGetSystemTimeX();                       \
-        }                                                                           \
-        if(ntp->log_index < 500 ){                                                  \
-            ntp->log[ntp->log_index++] = chVTGetSystemTimeX();                       \
+        extern uint32_t threads_log_in[3000];                                        \
+        extern uint32_t threads_log_out[3000];                                      \
+        static uint32_t time = 0;                                                   \
+        static thread_t *tp = 0;                                                  \
+        static uint8_t counter = 0;                                                \
+        time = chVTGetSystemTimeX();                                                \
+        if(time < 3000){                                                             \
+            tp = ch.rlist.r_newer;                                                \
+            counter = 0;                                                            \
+            while(tp != (thread_t *)&ch.rlist){                                     \
+                if(tp == ntp){                                                      \
+                    threads_log_in[time] |= (1 << counter);                         \
+                    break;                                                         \
+                }                                                                   \
+                tp = tp->p_newer;                                                   \
+                counter++;                                                          \
+            }                                                                      \
+            tp = ch.rlist.r_newer;                                                \
+            counter = 0;                                                            \
+            while(tp != (thread_t *)&ch.rlist){                                     \
+                if(tp == otp){                                                      \
+                    threads_log_out[time] |= (1 << counter);                        \
+                    break;                                                         \
+                }                                                                   \
+                tp = tp->p_newer;                                                   \
+                counter++;                                                          \
+            }                                                                       \
         }                                                                           \
 }
 

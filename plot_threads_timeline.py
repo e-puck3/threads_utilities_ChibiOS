@@ -137,7 +137,7 @@ for i in range(threads_count):
 sort_threads_by_prio()
 
 for i in range(threads_count):
-	threads_name_list.append(threads[i]['name'])
+	threads_name_list.append(threads[i]['name'] + '\nPrio:'+ str(threads[i]['prio']))
 
 send_command('threads_stat', False)
 print('Stack usage of the running threads')
@@ -153,6 +153,8 @@ print('Port {} closed'.format(sys.argv[1]))
 # Declaring a figure "gnt" 
 # figsize is in inch
 fig, gnt = plt.subplots(figsize=(15, 10), dpi=90) 
+
+plt.subplots_adjust(right=0.97)
 
 # Setting Y-axis limits 
 #gnt.set_ylim(0, 30) 

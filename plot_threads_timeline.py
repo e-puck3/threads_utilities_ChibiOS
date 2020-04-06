@@ -101,7 +101,7 @@ if len(sys.argv) == 1:
 
 
 try:
-	port = serial.Serial(sys.argv[1], timeout=0.1)
+	port = serial.Serial(sys.argv[1], timeout=0.5)
 except:
 	print('Cannot connect to the e-puck2')
 	sys.exit(0)

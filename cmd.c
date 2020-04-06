@@ -413,7 +413,7 @@ static void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv
     chprintf(chp, "Prio : %d\r\n",tp->p_prio); 
 
 
-    for(uint16_t i = 0; i < 250; i++){
+    for(uint16_t i = 0; i < 500; i++){
         chprintf(chp, "%d\r\n",tp->log[i]); 
     }
 }

@@ -410,7 +410,7 @@
  * @details User fields added to the end of the @p thread_t structure.
  */
 #define CH_CFG_THREAD_EXTRA_FIELDS                                          \
-    uint32_t log[250];                                                     \
+    uint16_t log[500];                                                     \
     uint16_t log_index;                                                     \
     /* Add threads custom fields here.*/
 
@@ -444,10 +444,10 @@
  */
 #define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
         /* Context switch code here.*/                                            \
-        if(otp->log_index < 250 ){                                                  \
+        if(otp->log_index < 500 ){                                                  \
             otp->log[otp->log_index++] = chVTGetSystemTimeX();                       \
         }                                                                           \
-        if(ntp->log_index < 250 ){                                                  \
+        if(ntp->log_index < 500 ){                                                  \
             ntp->log[ntp->log_index++] = chVTGetSystemTimeX();                       \
         }                                                                           \
 }

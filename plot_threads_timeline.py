@@ -9,6 +9,7 @@ import struct
 import sys
 import time
 
+UINT16_t = 65535
 
 START_Y_TICKS = 10
 SPACING_Y_TICKS = 10
@@ -79,14 +80,21 @@ def process_threads_timeline_cmd(lines):
 	#adds a thread to the threads list
 	threads.append({'name': name,'prio': prio, 'values': []})
 
+	overflow = 0
+	last_value = 0
 	#adds the values by pair to the last thread (aka the one we just created)
 	for i in range(0, len(values), 2):
 		#the format for broken_barh needs to be (begin, width)
 		width = values[i+1] - values[i]
+		#we store the values as uint16_t to spare some ram on the MCU 
+		#so we need to detect the overflow and correct it for the timeline graph
+		if(values[i] < last_value):
+			overflow = overflow + 1
+		last_value = values[i+1]
 		if(width <  MINIMUM_THREAD_DURATION):
-			threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
+			threads[-1]['values'].append((values[i]+overflow*UINT16_t, MINIMUM_THREAD_DURATION))
 		else:
-			threads[-1]['values'].append((values[i], width))
+			threads[-1]['values'].append((values[i]+overflow*UINT16_t, width))
 
 def get_thread_prio(thread):
 	return thread['prio']

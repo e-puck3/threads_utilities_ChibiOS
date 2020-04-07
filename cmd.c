@@ -22,7 +22,7 @@
 #include <fat.h>
 #include <audio/play_sound_file.h>
 #include <audio/play_melody.h>
-#include "uc_usage.h"
+#include "threads_utilities.h"
 
 #define TEST_WA_SIZE        THD_WORKING_AREA_SIZE(256)
 #define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)

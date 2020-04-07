@@ -52,6 +52,8 @@ void printCountThreads(BaseSequentialStream *out);
  * 					of each running thread that has been recorded by the function fillThreadsTimeline().
  * 					Made to work in pair with plot_threads_timeline.py to generate a timeline graph which 
  * 					let us visualize when a thread is running.
+ * 					
+ * 					Better to call via the USB shell since the python script will send a specific command
  * 
  * @param device 	Pointer to the output
  */	

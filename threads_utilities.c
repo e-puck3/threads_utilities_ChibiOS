@@ -6,7 +6,7 @@
  * @modified by  	Eliot Ferragni
  */
 
-#include "uc_usage.h"
+#include "threads_utilities.h"
 
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick

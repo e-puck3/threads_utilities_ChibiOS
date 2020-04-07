@@ -30,6 +30,10 @@ def send_command(command, echo):
 
 def receive_text(echo):
 	rcv = bytearray([])
+	# If the communication is slow, it's possible to have nothing yet waiting
+	# in the input so we do a read first to let the timout of the port do its work
+	# then we read normally
+	rcv += port.read()
 	while(port.inWaiting()):
 		rcv += port.read()
 
@@ -97,7 +101,7 @@ if len(sys.argv) == 1:
 
 
 try:
-	port = serial.Serial(sys.argv[1], timeout=0.5)
+	port = serial.Serial(sys.argv[1], timeout=5)
 except:
 	print('Cannot connect to the e-puck2')
 	sys.exit(0)

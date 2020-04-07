@@ -435,40 +435,22 @@
         /* Add threads finalization code here.*/                                  \
 }
 
+#if !defined(_FROM_ASM_)
+#ifdef __cplusplus
+extern "C" {
+#endif
+void fillThreadsTimeline(void* in, void* out);
+#ifdef __cplusplus
+}
+#endif
+#endif /* _FROM_ASM_ */
 /**
  * @brief   Context switch hook.
  * @details This hook is invoked just before switching between threads.
  */
 #define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
         /* Context switch code here.*/                                            \
-        extern uint32_t threads_log_in[3000];                                        \
-        extern uint32_t threads_log_out[3000];                                      \
-        static uint32_t time = 0;                                                   \
-        static thread_t *tp = 0;                                                  \
-        static uint8_t counter = 0;                                                \
-        time = chVTGetSystemTimeX();                                                \
-        if(time < 3000){                                                             \
-            tp = ch.rlist.r_newer;                                                \
-            counter = 0;                                                            \
-            while(tp != (thread_t *)&ch.rlist){                                     \
-                if(tp == ntp){                                                      \
-                    threads_log_in[time] |= (1 << counter);                         \
-                    break;                                                         \
-                }                                                                   \
-                tp = tp->p_newer;                                                   \
-                counter++;                                                          \
-            }                                                                      \
-            tp = ch.rlist.r_newer;                                                \
-            counter = 0;                                                            \
-            while(tp != (thread_t *)&ch.rlist){                                     \
-                if(tp == otp){                                                      \
-                    threads_log_out[time] |= (1 << counter);                        \
-                    break;                                                         \
-                }                                                                   \
-                tp = tp->p_newer;                                                   \
-                counter++;                                                          \
-            }                                                                       \
-        }                                                                           \
+        fillThreadsTimeline(ntp,otp);                                              \
 }
 
 /**

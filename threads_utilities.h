@@ -69,10 +69,7 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number);
 // }
 // #endif
 // #endif /* _FROM_ASM_ */
-// /**
-//  * @brief   Context switch hook.
-//  * @details This hook is invoked just before switching between threads.
-//  */
+//
 
 
 /**

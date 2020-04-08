@@ -101,7 +101,7 @@ void printStatThreads(BaseSequentialStream *out)
 	chprintf(out, "\r\n");
 }
 
-void fillThreadsTimeline(void* ntp, void* otp){            
+void fillThreadsTimestamps(void* ntp, void* otp){            
 	static uint32_t time = 0;
 	static thread_t *tp = 0;
 	static thread_t *in = NULL;
@@ -150,7 +150,7 @@ void printCountThreads(BaseSequentialStream *out){
 	chprintf(out, "Number of threads : %d\r\n",n); 
 }
 
-void printTimelineThread(BaseSequentialStream *out, uint8_t thread_number){
+void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 	thread_t *tp;
 
 	uint8_t n = thread_number;
@@ -210,7 +210,7 @@ void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
     
     uint8_t n = atoi(argv[0]);
 
-    printTimelineThread(chp, n);
+    printTimestampsThread(chp, n);
 }
 
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])

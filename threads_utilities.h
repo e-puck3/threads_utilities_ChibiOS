@@ -43,7 +43,7 @@ void printCountThreads(BaseSequentialStream *out);
 
 /**
  * @brief 			Prints the timeline of the threads, aka the in and out times
- * 					of each running thread that has been recorded by the function fillThreadsTimeline().
+ * 					of each running thread that has been recorded by the function fillThreadsTimestamps().
  * 					Made to work in pair with plot_threads_timeline.py to generate a timeline graph which 
  * 					let us visualize when a thread is running.
  * 					
@@ -51,20 +51,20 @@ void printCountThreads(BaseSequentialStream *out);
  * 
  * @param device 	Pointer to the output
  */	
-void printTimelineThread(BaseSequentialStream *out, uint8_t thread_number);
+void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number);
 
 /********************                CHCONF FUNCTION               ********************/
 
-/* 	Example of adding fillThreadsTimeline() to the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
+/* 	Example of adding fillThreadsTimestamps() to the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
 *	1) Add the declaration below before the hook
-*	2) Add a call to fillThreadsTimeline(ntp,otp) in CH_CFG_CONTEXT_SWITCH_HOOK
+*	2) Add a call to fillThreadsTimestamps(ntp,otp) in CH_CFG_CONTEXT_SWITCH_HOOK
 */
 
 // #if !defined(_FROM_ASM_)
 // #ifdef __cplusplus
 // extern "C" {
 // #endif
-// void fillThreadsTimeline(void* in, void* out);
+// void fillThreadsTimestamps(void* in, void* out);
 // #ifdef __cplusplus
 // }
 // #endif
@@ -81,7 +81,7 @@ void printTimelineThread(BaseSequentialStream *out, uint8_t thread_number);
  * 
  * @param device 	Pointer to the output
  */	
-void fillThreadsTimeline(void* ntp, void* otp);
+void fillThreadsTimestamps(void* ntp, void* otp);
 
 /********************                SHELL FUNCTIONS               ********************/
 
@@ -92,15 +92,17 @@ void fillThreadsTimeline(void* ntp, void* otp);
 void cmd_threads_count(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print the number of threads running
- * 					Calls printTimelineThread
+ * 					Calls printTimestampsThread()
  */	
 void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
- * @brief 			Shell command to print the number of threads running
+ * @brief 			Shell command to print stats abouts the memory usage of the threads
+ * 					Calls printStatThreads()
  */	
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
- * @brief 			Shell command to print the number of threads running
+ * @brief 			Shell command to print usage of MCU time per threads
+ * 					Calls printUcUsage()
  */	
 void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 

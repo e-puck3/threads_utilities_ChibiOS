@@ -439,7 +439,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void fillThreadsTimeline(void* in, void* out);
+void fillThreadsTimestamps(void* in, void* out);
 #ifdef __cplusplus
 }
 #endif
@@ -450,7 +450,7 @@ void fillThreadsTimeline(void* in, void* out);
  */
 #define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
         /* Context switch code here.*/                                            \
-        fillThreadsTimeline(ntp,otp);                                              \
+        fillThreadsTimestamps(ntp,otp);                                              \
 }
 
 /**

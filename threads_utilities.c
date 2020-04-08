@@ -35,7 +35,8 @@ void printUcUsage(BaseSequentialStream* out) {
 	//computes the percentage of time used by each thread
 	do {
 		tmp1 = (uint16_t)(tp->p_stats.cumulative*10000/sum);
-		chprintf(out, "%25s          %u.%u%%\r\n", tp->p_name, tmp1/100, tmp1%100);
+		chprintf(out, "%25s          %u.%u%%\r\n", 	tp->p_name == NULL ? "NONAME" : tp->p_name, 
+													tmp1/100, tmp1%100);
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);
 
@@ -65,7 +66,7 @@ void printStatThreads(BaseSequentialStream *out)
 																		 (uint32_t)tp->p_ctx.r13,
 																		 (uint32_t)tp->p_prio,
 																		 states[tp->p_state],
-																		 tp->p_name == NULL ? "" : tp->p_name);
+																		 tp->p_name == NULL ? "NONAME" : tp->p_name);
 
 	tp = chRegNextThread(tp);
 	do {
@@ -87,7 +88,7 @@ void printStatThreads(BaseSequentialStream *out)
 																		 used_pct,
 																		 (uint32_t)tp->p_prio,
 																		 states[tp->p_state],
-																		 tp->p_name == NULL ? "" : tp->p_name);
+																		 tp->p_name == NULL ? "NONAME" : tp->p_name);
 
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);

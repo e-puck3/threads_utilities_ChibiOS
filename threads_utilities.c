@@ -16,6 +16,11 @@
 static uint32_t threads_log_in[THREADS_TIMELINE_LOG_SIZE] = {0};
 static uint32_t threads_log_out[THREADS_TIMELINE_LOG_SIZE] = {0};
 
+#define LAST_INIT 			0
+#define LAST_ONLY_IN 		1
+#define LAST_ONLY_OUT 		2
+#define LAST_IN_AND_OUT		3
+
 /********************                PUBLIC FUNCTIONS              ********************/
 
 void printUcUsage(BaseSequentialStream* out) {
@@ -151,10 +156,13 @@ void printCountThreads(BaseSequentialStream *out){
 }
 
 void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
-	thread_t *tp;
+	static uint8_t last_inOut = LAST_INIT;
+	static thread_t *tp = NULL;
+	static uint8_t n = 0;
+	static uint16_t time_in = 0;
+	static uint16_t time_out = 0;
 
-	uint8_t n = thread_number;
-
+	n = thread_number;
 	tp = chRegFirstThread();
 	while(n){
 		tp = chRegNextThread(tp);
@@ -168,17 +176,39 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 	chprintf(out, "Thread : %s\r\n",tp->p_name); 
 	chprintf(out, "Prio : %d\r\n",tp->p_prio); 
 
-	uint16_t time_in = 0;
-	uint16_t time_out = 0;
+	last_inOut = LAST_INIT;
+
 	for(uint16_t i = 0; i < THREADS_TIMELINE_LOG_SIZE; i++){
 		time_in = (threads_log_in[i] & (1 << thread_number));
 		time_out = (threads_log_out[i] & (1 << thread_number));
-		if(time_in){
-			chprintf(out, "%d\r\n", i);
-		} 
-		if(time_out){
-			chprintf(out, "%d\r\n", i);
-		} 
+
+		if(time_in && time_out){
+			chprintf(out, "%d\r\n", i);	//prints in time
+			chprintf(out, "%d\r\n", i); //printd out time
+			last_inOut = LAST_IN_AND_OUT;
+		}
+		else if(time_in && (last_inOut == LAST_ONLY_OUT)){
+			chprintf(out, "%d\r\n", i);	//prints in time
+			last_inOut = LAST_ONLY_IN;
+		}
+		else if(time_out && (last_inOut == LAST_ONLY_IN)){
+			chprintf(out, "%d\r\n", i);	//prints out time
+			last_inOut = LAST_ONLY_OUT;
+		}
+		// Special case when there are two IN during the same system tick
+		// otherwise we miss forget to write an IN time
+		else if(time_out && (last_inOut == LAST_IN_AND_OUT)){
+			chprintf(out, "%d\r\n", i);	//prints in time
+			chprintf(out, "%d\r\n", i);	//prints out time
+			last_inOut = LAST_ONLY_OUT;
+		}
+		// Specific case for the init time where we only have the IN or OUT time
+		// Happens with the main and idle threads
+		else if((time_in != time_out) && (last_inOut == LAST_INIT)){
+			chprintf(out, "%d\r\n", i);	//prints in time
+			chprintf(out, "%d\r\n", i);	//prints out time
+			last_inOut = LAST_IN_AND_OUT;
+		}
 	}
 }
 

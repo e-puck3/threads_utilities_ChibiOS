@@ -60,33 +60,34 @@ def process_threads_timeline_cmd(lines):
 	#extracts the prio of the tread
 	prio = int(lines[2][len('Prio : '):])
 
-	#extracts the values
-	#len(lines)-1 to not take the "ch>" at the end
-	values = []
-	for i in range(3, len(lines)-1):
-		values.append(int(lines[i]))
-
-	#removes the last entries if -1
-	#happens if the log is not full
-	while(values[-1] == -1):
-		values.pop(-1)
-
-	#removes the last value if the number of value is odd
-	#because we need a pair of values
-	if(len(values) % 2):
-		values.pop(-1)
-
 	#adds a thread to the threads list
 	threads.append({'name': name,'prio': prio, 'values': []})
 
-	#adds the values by pair to the last thread (aka the one we just created)
-	for i in range(0, len(values), 2):
-		#the format for broken_barh needs to be (begin, width)
-		width = values[i+1] - values[i]
-		if(width <  MINIMUM_THREAD_DURATION):
-			threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
-		else:
-			threads[-1]['values'].append((values[i], width))
+	if(len(lines) > 4):
+		#extracts the values
+		#len(lines)-1 to not take the "ch>" at the end
+		values = []
+		for i in range(3, len(lines)-1):
+			values.append(int(lines[i]))
+
+		#removes the last entries if -1
+		#happens if the log is not full
+		while(values[-1] == -1):
+			values.pop(-1)
+
+		#removes the last value if the number of value is odd
+		#because we need a pair of values
+		if(len(values) % 2):
+			values.pop(-1)
+
+		#adds the values by pair to the last thread (aka the one we just created)
+		for i in range(0, len(values), 2):
+			#the format for broken_barh needs to be (begin, width)
+			width = values[i+1] - values[i]
+			if(width <  MINIMUM_THREAD_DURATION):
+				threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
+			else:
+				threads[-1]['values'].append((values[i], width))
 
 def get_thread_prio(thread):
 	return thread['prio']

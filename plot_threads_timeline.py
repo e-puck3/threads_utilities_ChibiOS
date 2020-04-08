@@ -13,6 +13,8 @@ import time
 START_Y_TICKS = 10
 SPACING_Y_TICKS = 10
 RECT_HEIGHT = 10
+RED_DELIMITER_HEIGHT = 12
+RED_DELIMITER_WIDTH = 0.1
 MINIMUM_THREAD_DURATION = 0.5
 
 threads = []
@@ -167,13 +169,22 @@ gnt.set_yticklabels(threads_name_list)
 # Setting graph attribute 
 gnt.grid(b = True, which='both') 
 
-colors=['red','green','blue','cyan','magenta','black']
+colors=['green','blue','cyan','black']
 
+# Draws a rectangle every time a thread is running
 for i in range(threads_count):
-	# Declaring a set of br in the timeline
 	color = random.randrange(0,len(colors),1)
-	gnt.broken_barh(threads[i]['values'], ((START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2, RECT_HEIGHT), facecolors=colors[color]) 
-# Declaring a set of br in the timeline
-#gnt.broken_barh([(1000,0)], (20 - RECT_HEIGHT/2, RECT_HEIGHT), facecolors ='red') 
+	y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2
+	gnt.broken_barh(threads[i]['values'], (y_row, RECT_HEIGHT), facecolors=colors[color])
+
+# Draws a red delimiter on top of the rectangles 
+# to show that a thread has stopped and begun on the same time stamp
+for i in range(threads_count):
+	last_end = 0
+	y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RED_DELIMITER_HEIGHT/2
+	for begin, width in threads[i]['values']:
+		if(last_end == begin):
+			gnt.broken_barh([(begin, RED_DELIMITER_WIDTH)], (y_row , RED_DELIMITER_HEIGHT), facecolors='red')  
+		last_end = begin + width
 
 plt.show()

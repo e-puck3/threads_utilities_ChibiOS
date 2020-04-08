@@ -6,12 +6,17 @@
  * @modified by  	Eliot Ferragni
  */
 
+#include <stdlib.h>
 #include "threads_utilities.h"
+
+/********************              INTERNAL VARIABLES              ********************/
 
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
 static uint32_t threads_log_in[THREADS_TIMELINE_LOG_SIZE] = {0};
 static uint32_t threads_log_out[THREADS_TIMELINE_LOG_SIZE] = {0};
+
+/********************                PUBLIC FUNCTIONS              ********************/
 
 void printUcUsage(BaseSequentialStream* out) {
 	
@@ -175,4 +180,49 @@ void printTimelineThread(BaseSequentialStream *out, uint8_t thread_number){
 			chprintf(out, "%d\r\n", i);
 		} 
 	}
+}
+
+/********************                SHELL FUNCTIONS               ********************/
+
+void cmd_threads_count(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+
+    if (argc > 0) {
+        chprintf(chp, "Usage: threads_count\r\n");
+        return;
+    }
+    
+    printCountThreads(chp);
+
+}
+
+void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+
+    if (argc != 1) {
+        chprintf(chp, "Usage: threads_timeline numberOfTheThread\r\n");
+        return;
+    }
+    
+    uint8_t n = atoi(argv[0]);
+
+    printTimelineThread(chp, n);
+}
+
+void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+    printStatThreads(chp);
+}
+
+void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+    printUcUsage(chp);
 }

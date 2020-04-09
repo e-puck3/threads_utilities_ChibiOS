@@ -50,6 +50,11 @@ def receive_text(echo):
 	return text_lines
 
 def process_threads_count_cmd(lines, echo):
+	# what we should receive :
+	# line 0 			: threads_count
+	# line 1 			: Number of threads : numberOfThreads
+	# line 2			: ch>
+	
 	nb = int(lines[1][len('Number of threads : '):])
 	if(echo == True):
 		print('There are {} threads alive'.format(nb))
@@ -57,10 +62,22 @@ def process_threads_count_cmd(lines, echo):
 	return nb
 
 def process_threads_timeline_cmd(lines):
+	# what we should receive :
+	# line 0 			: threads_timeline numberOfTheThread
+	# line 1 			: Thread : nameOfTheThread
+	# line 2 			: Prio : prioOfTheThread
+	# lines 3 -> n-1	: timestamps
+	# line n			: ch>
+
 	#extracts the name of the thread
 	name = lines[1][len('Thread : '):]
-	#extracts the prio of the tread
-	prio = int(lines[2][len('Prio : '):])
+	# if we can't extract a number, we print the lines to show the error
+	try:
+		#extracts the prio of the tread
+		prio = int(lines[2][len('Prio : '):])
+	except:
+		print(lines[1:-1])
+		sys.exit(0)
 
 	#adds a thread to the threads list
 	threads.append({'name': name,'prio': prio, 'values': []})

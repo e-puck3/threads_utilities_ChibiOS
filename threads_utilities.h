@@ -1,9 +1,11 @@
 /**
- * @file	uc_usage.h
- * @brief  	Functions to show the uC usage
+ * @file	threads_utilities.h
+ * @brief  	Functions to obtain various stats about the threads
  * 
  * @source			http://www.chibios.com/forum/viewtopic.php?f=2&t=138&start=10
- * @modified by  	Eliot Ferragni
+ * @source2			http://www.chibios.com/forum/viewtopic.php?t=4496
+ * @created by  	Eliot Ferragni
+ * @last modif		9 april 2020
  */
 
 #ifndef UC_USAGE_H

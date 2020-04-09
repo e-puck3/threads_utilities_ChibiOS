@@ -407,7 +407,7 @@ static void cmd_readclock(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
-    chprintf(chp, "SYSCLK: %i \r\n HCLK: %i \r\n PCLK1  %i \r\n PCLK2 %i \r\n",
+    chprintf(chp, "SYSCLK: %i \n HCLK: %i \n PCLK1  %i \n PCLK2 %i \n",
              STM32_SYSCLK, STM32_HCLK, STM32_PCLK1, STM32_PCLK2);
 }
 

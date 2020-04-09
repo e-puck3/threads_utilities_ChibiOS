@@ -1,6 +1,14 @@
-# Importing the matplotlb.pyplot 
-# import matplotlib
-# matplotlib.use('TkAgg')
+# File 				: plot_threads_timeline.py 
+# Author 			: Eliot Ferragni
+# Creation date		: 3 april 2020
+# Last modif date	: 9 april 2020
+# version			: 1.0
+# Brief				: This script gathers the timestamps of each thread runnnig on an
+#					  e-puck2 configured to use the threads_timestamp functions
+#					  in the threads_utilities.c/.h files
+#					  Then it prints them on a timeline in order to let the user visualize 
+#					  when how the threads are behaving in the time
+
 import matplotlib.pyplot as plt
 import numpy as np
 import random
@@ -8,6 +16,35 @@ import serial
 import struct
 import sys
 import time
+
+goodbye = """
+          |\      _,,,---,,_
+          /,`.-'`'    -.  ;-;;,_
+         |,4-  ) )-,_..;\ (  `'-'
+ _______'---''(_/--'__`-'\_)______   ______            _______  _
+(  ____ \(  ___  )(  ___  )(  __  \ (  ___ \ |\     /|(  ____ \| |
+| (    \/| (   ) || (   ) || (  \  )| (   ) )( \   / )| (    \/| |
+| |      | |   | || |   | || |   ) || (__/ /  \ (_) / | (__    | |
+| | ____ | |   | || |   | || |   | ||  __ (    \   /  |  __)   | |
+| | \_  )| |   | || |   | || |   ) || (  \ \    ) (   | (      |_|
+| (___) || (___) || (___) || (__/  )| )___) )   | |   | (____/\ _ 
+(_______)(_______)(_______)(______/ |______/    \_/   (_______/(_)                                         
+"""
+
+goodbye2 = """
+                   /\_/\\
+                 =( °w° )=
+                   )   (  //
+                  (__ __)//
+ _____                 _ _                _ 
+|  __ \               | | |              | |
+| |  \/ ___   ___   __| | |__  _   _  ___| |
+| | __ / _ \ / _ \ / _` | '_ \| | | |/ _ \ |
+| |_\ \ (_) | (_) | (_| | |_) | |_| |  __/_|
+ \____/\___/ \___/ \__,_|_.__/ \__, |\___(_)
+                                __/ |       
+                               |___/        
+"""
 
 
 START_Y_TICKS = 10
@@ -205,3 +242,6 @@ for i in range(threads_count):
 		last_end = begin + width
 
 plt.show()
+
+# Be polite, say goodbye :-)
+print(goodbye)

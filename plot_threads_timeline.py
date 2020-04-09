@@ -1,7 +1,7 @@
 # Importing the matplotlb.pyplot 
 # import matplotlib
 # matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 import serial
@@ -147,7 +147,7 @@ print('Port {} closed'.format(sys.argv[1]))
 
 # Declaring a figure "gnt" 
 # figsize is in inch
-fig, gnt = plt.subplots(figsize=(15, 10), dpi=90) 
+fig, gnt = plt.subplots(figsize=(15, 10), dpi=90)
 
 plt.subplots_adjust(right=0.97)
 
@@ -158,16 +158,16 @@ plt.subplots_adjust(right=0.97)
 # gnt.set_xlim(0, 3000) 
 
 # Setting labels for x-axis and y-axis 
-gnt.set_xlabel('milliseconds since boot') 
-gnt.set_ylabel('Threads') 
+gnt.set_xlabel('milliseconds since boot')
+gnt.set_ylabel('Threads')
 
 # Setting ticks on y-axis 
-gnt.set_yticks(range(START_Y_TICKS, (threads_count+1)*SPACING_Y_TICKS, SPACING_Y_TICKS)) 
+gnt.set_yticks(range(START_Y_TICKS, (threads_count+1)*SPACING_Y_TICKS, SPACING_Y_TICKS))
 # Labelling tickes of y-axis 
-gnt.set_yticklabels(threads_name_list) 
+gnt.set_yticklabels(threads_name_list)
 
 # Setting graph attribute 
-gnt.grid(b = True, which='both') 
+gnt.grid(b = True, which='both')
 
 colors=['green','blue','cyan','black']
 
@@ -184,7 +184,7 @@ for i in range(threads_count):
 	y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RED_DELIMITER_HEIGHT/2
 	for begin, width in threads[i]['values']:
 		if(last_end == begin):
-			gnt.broken_barh([(begin, RED_DELIMITER_WIDTH)], (y_row , RED_DELIMITER_HEIGHT), facecolors='red')  
+			gnt.broken_barh([(begin, RED_DELIMITER_WIDTH)], (y_row , RED_DELIMITER_HEIGHT), facecolors='red')
 		last_end = begin + width
 
 plt.show()

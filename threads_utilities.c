@@ -15,8 +15,8 @@
 
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
-static uint32_t threads_log_in[THREADS_TIMELINE_LOG_SIZE] = {0};
-static uint32_t threads_log_out[THREADS_TIMELINE_LOG_SIZE] = {0};
+static uint32_t threads_log_in[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+static uint32_t threads_log_out[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 
 #define CASE_INIT 			0
 #define CASE_IN 			1
@@ -107,14 +107,31 @@ void printStatThreads(BaseSequentialStream *out)
 	chprintf(out, "\r\n");
 }
 
-void fillThreadsTimestamps(void* ntp, void* otp){            
+void printCountThreads(BaseSequentialStream *out){
+
+	thread_t *tp;
+
+	uint16_t n = 1;
+
+	tp = chRegFirstThread();
+	tp = chRegNextThread(tp);
+	while(tp != NULL){
+		n++;
+		tp = chRegNextThread(tp);
+	}
+	
+	chprintf(out, "Number of threads : %d\r\n",n); 
+}
+
+void fillThreadsTimestamps(void* ntp, void* otp){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	static uint32_t time = 0;
 	static thread_t *tp = 0;
 	static thread_t *in = NULL;
 	static thread_t *out = NULL;
 	static uint8_t counter = 0;
 	time = chVTGetSystemTimeX();
-	if(time < THREADS_TIMELINE_LOG_SIZE){
+	if(time < THREADS_TIMESTAMPS_LOG_SIZE){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
 		tp = ch.rlist.r_newer;
@@ -138,25 +155,14 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 			counter++;
 		}
 	}
-}
-
-void printCountThreads(BaseSequentialStream *out){
-
-	thread_t *tp;
-
-	uint16_t n = 1;
-
-	tp = chRegFirstThread();
-	tp = chRegNextThread(tp);
-	while(tp != NULL){
-		n++;
-		tp = chRegNextThread(tp);
-	}
-	
-	chprintf(out, "Number of threads : %d\r\n",n); 
+#else
+	(void) ntp;
+	(void) otp;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	static uint8_t last_case = CASE_INIT;
 	static thread_t *tp = NULL;
 	static uint8_t n = 0;
@@ -179,7 +185,7 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 
 	last_case = CASE_INIT;
 
-	for(uint16_t i = 0; i < THREADS_TIMELINE_LOG_SIZE; i++){
+	for(uint16_t i = 0; i < THREADS_TIMESTAMPS_LOG_SIZE; i++){
 		time_in = (threads_log_in[i] & (1 << thread_number));
 		time_out = (threads_log_out[i] & (1 << thread_number));
 
@@ -221,6 +227,10 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 		}
 		
 	}
+#else
+	chprintf(out, "The thread timestamps functionnality isn't enabled\r\n");
+	chprintf(out, "Please define ENABLE_THREADS_TIMESTAMPS in your chconf.h file \r\n");
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 /********************                SHELL FUNCTIONS               ********************/

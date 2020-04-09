@@ -444,6 +444,8 @@ void fillThreadsTimestamps(void* in, void* out);
 }
 #endif
 #endif /* _FROM_ASM_ */
+
+#define ENABLE_THREADS_TIMESTAMPS
 /**
  * @brief   Context switch hook.
  * @details This hook is invoked just before switching between threads.

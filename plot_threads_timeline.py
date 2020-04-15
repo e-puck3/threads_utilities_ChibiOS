@@ -7,7 +7,9 @@
 #					  e-puck2 configured to use the threads_timestamp functions
 #					  in the threads_utilities.c/.h files
 #					  Then it prints them on a timeline in order to let the user visualize 
-#					  when how the threads are behaving in the time
+#					  how the threads are behaving in the time
+#
+#					  To run the script : "python3 plot_threads_timeline.py serialPort"
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -210,6 +212,8 @@ plt.subplots_adjust(right=0.97)
 
 # # Setting X-axis limits 
 # gnt.set_xlim(0, 3000) 
+
+plt.title('Threads timeline')
 
 # Setting labels for x-axis and y-axis 
 gnt.set_xlabel('milliseconds since boot')

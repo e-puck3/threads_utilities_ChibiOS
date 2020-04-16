@@ -83,10 +83,42 @@ We can then recover these data and show them on a timeline with the provided Pyt
 
 ### Prerequisite C
 
+1. The recording of the timestamps uses the Hooks possibilities of ChibiOS. Thus it is necessary to add some lines to the **chconf.h** file of your project as followed.
+
+Add the following lines before the ``#define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp)`` hook
+
+```c
+#define TIMESTAMPS_INCLUDE
+#include "threads_utilities_chconf.h"
+```
+
+and the following inside the ``#define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp)`` hook
+
+```c
+fillThreadsTimestamps(ntp, otp);
+```
+Don't forget the ``\`` at the end of the lines inside the hook
+Here is an example of a correct **chconf.h** file 
+
+```c
+#define TIMESTAMPS_INCLUDE
+#include "threads_utilities_chconf.h"
+
+/**
+ * @brief   Context switch hook.
+ * @details This hook is invoked just before switching between threads.
+ */
+#define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
+        /* Context switch code here.*/                                            \
+        fillThreadsTimestamps(ntp, otp);                                        \
+}
+```
+
+
 To be able to send the data, we use the standard USB Shell functionality of ChibiOS. You can find a lot of examples of its use in the **testhal** folder of ChibiOS. They contain the usbcfg.c/.h files to configure the USB and the initialization of the Shell.
 When you have a shell working, you need to add the following line in the commands of the Shell to add the htread_utilities commands:
 
-- Add ``THREADS_UTILITIES_SHELL_CMD`` inside the ``ShellCommand`` array.
+2. Add ``THREADS_UTILITIES_SHELL_CMD`` inside the ``ShellCommand`` array.
 
 For example the following ``ShellCommand`` array : 
 
@@ -115,7 +147,7 @@ static const ShellCommand commands[] = {
 };
 ...
 ```
-- Don't forget to include ``threads_utilities.h`` in the files that use a **threads_utilities** function
+3. Don't forget to include ``threads_utilities.h`` in the files that use a **threads_utilities** function
 
 ### Usage Python3
 
@@ -128,4 +160,7 @@ Then, if the Shell works correctly on the MCU side, you can simply launch the sc
 
 With ``ComPort`` being the USB com port to which the Shell is connected.
 
-Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. Left and Right arrows act respectively like Undo and Redo buttons for the view.
+Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. 
+Left and Right arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zoom only in the **X** or **Y** axis.
+
+Finally, don't forget to let the time to your code to fill the timestamps logs before reading them with the script. If you have 3 seconds of logs, then wait at least 3 seconds before launching the script. Note that once the logs are full, they are kept and no more modified.

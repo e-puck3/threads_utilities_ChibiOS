@@ -53,34 +53,6 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number);
 
 /********************                CHCONF FUNCTION               ********************/
 
-/* 	The threads timestamp functionnality uses quite a lot of memory to store the timetamps.
-*	It is disabled by default.
-*	
-*	To enable it, simply define ENABLE_THREADS_TIMESTAMPS somewhere in chconf.h
-*/
-
-// size of the buffers used for the threads timestamps functionality
-// will take 4+4 bytes * THREADS_TIMESTAMPS_LOG_SIZE
-#define THREADS_TIMESTAMPS_LOG_SIZE	3000
-
-
-/* 	Example of adding fillThreadsTimestamps() to the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
-*	1) Add the declaration below before the hook
-*	2) Add a call to fillThreadsTimestamps(ntp,otp) in CH_CFG_CONTEXT_SWITCH_HOOK
-*/
-
-// #if !defined(_FROM_ASM_)
-// #ifdef __cplusplus
-// extern "C" {
-// #endif
-// void fillThreadsTimestamps(void* in, void* out);
-// #ifdef __cplusplus
-// }
-// #endif
-// #endif /* _FROM_ASM_ */
-//
-
-
 /**
  * @brief 			Saves the in and out times of each running thread while the buffers aren't full.
  * 					To be called by the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h

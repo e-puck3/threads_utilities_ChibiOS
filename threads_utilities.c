@@ -231,8 +231,8 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 	}
 #else
 	(void) thread_number;
-	chprintf(out, "The thread timestamps functionnality isn't enabled\r\n");
-	chprintf(out, "Please define ENABLE_THREADS_TIMESTAMPS in your chconf.h file \r\n");
+	chprintf(out, "The thread timestamps functionnality is disabled\r\n");
+	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = yes in your makefile \r\n");
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 

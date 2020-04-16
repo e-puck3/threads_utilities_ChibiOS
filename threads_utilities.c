@@ -15,8 +15,10 @@
 
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
+#ifdef ENABLE_THREADS_TIMESTAMPS
 static uint32_t threads_log_in[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 static uint32_t threads_log_out[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 
 #define CASE_INIT 			0
 #define CASE_IN 			1
@@ -228,6 +230,7 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 		
 	}
 #else
+	(void) thread_number;
 	chprintf(out, "The thread timestamps functionnality isn't enabled\r\n");
 	chprintf(out, "Please define ENABLE_THREADS_TIMESTAMPS in your chconf.h file \r\n");
 #endif /* ENABLE_THREADS_TIMESTAMPS */

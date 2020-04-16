@@ -188,7 +188,7 @@ for i in range(threads_count):
 sort_threads_by_prio()
 
 for i in range(threads_count):
-	threads_name_list.append(threads[i]['name'] + '\nPrio:'+ str(threads[i]['prio']))
+	threads_name_list.append(threads[i]['name'].replace(' ','\n') + '\nPrio:'+ str(threads[i]['prio']))
 
 send_command('threads_stat', False)
 print('Stack usage of the running threads')
@@ -222,7 +222,7 @@ gnt.set_ylabel('Threads')
 # Setting ticks on y-axis 
 gnt.set_yticks(range(START_Y_TICKS, (threads_count+1)*SPACING_Y_TICKS, SPACING_Y_TICKS))
 # Labelling tickes of y-axis 
-gnt.set_yticklabels(threads_name_list)
+gnt.set_yticklabels(threads_name_list, multialignment='center')
 
 # Setting graph attribute 
 gnt.grid(b = True, which='both')

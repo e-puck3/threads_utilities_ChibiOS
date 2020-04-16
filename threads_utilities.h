@@ -12,6 +12,7 @@
 #define UC_USAGE_H
 
 #include "ch.h"
+#include "hal.h"
 #include "chprintf.h"
 
 /********************                PUBLIC FUNCTIONS              ********************/

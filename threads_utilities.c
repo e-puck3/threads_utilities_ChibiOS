@@ -37,7 +37,7 @@ void printUcUsage(BaseSequentialStream* out) {
 	tp = chRegFirstThread();
 	//computes the total number of cycles counted
 	do {
-		sum += tp->p_stats.cumulative;
+		sum += tp->stats.cumulative;
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);
 	sum += ch.kernel_stats.m_crit_thd.cumulative;
@@ -47,8 +47,8 @@ void printUcUsage(BaseSequentialStream* out) {
 	tp = chRegFirstThread();
 	//computes the percentage of time used by each thread
 	do {
-		tmp1 = (uint16_t)(tp->p_stats.cumulative*10000/sum);
-		chprintf(out, "%25s          %u.%u%%\r\n", 	tp->p_name == NULL ? "NONAME" : tp->p_name, 
+		tmp1 = (uint16_t)(tp->stats.cumulative*10000/sum);
+		chprintf(out, "%25s          %u.%u%%\r\n", 	tp->name == NULL ? "NONAME" : tp->name, 
 													tmp1/100, tmp1%100);
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);
@@ -75,18 +75,18 @@ void printStatThreads(BaseSequentialStream *out)
 
 	tp = chRegFirstThread();
 	//special print for the main thread because apparently its memory is handled differently
-	chprintf(out, "0x%08lx 0x%08lx    ???    ???  ??? %4lu %9s %12s\r\n", (uint32_t)tp,
-																		 (uint32_t)tp->p_ctx.r13,
-																		 (uint32_t)tp->p_prio,
-																		 states[tp->p_state],
-																		 tp->p_name == NULL ? "NONAME" : tp->p_name);
+	chprintf(out, "0x%08lx 0x%08lx    ???    ???  ??? %4lu %9s %12s\r\n", (uint32_t)tp->wabase,
+																		 (uint32_t)tp,
+																		 (uint32_t)tp->prio,
+																		 states[tp->state],
+																		 tp->name == NULL ? "NONAME" : tp->name);
 
 	tp = chRegNextThread(tp);
 	do {
 		n = 0;
 
-		uint8_t *begin = (uint8_t *)tp;
-		uint8_t *end = (uint8_t *)tp->p_ctx.r13;
+		uint8_t *begin = (uint8_t *)tp->wabase;
+		uint8_t *end = (uint8_t *)tp;
 		sz = end - begin;
 
 		while(begin < end)
@@ -94,14 +94,14 @@ void printStatThreads(BaseSequentialStream *out)
 
 		used_pct = (n * 100) / sz;
 
-		chprintf(out, "0x%08lx 0x%08lx %6u %6u %3u%% %4lu %9s %12s\r\n", (uint32_t)tp,
-																		 (uint32_t)tp->p_ctx.r13,
+		chprintf(out, "0x%08lx 0x%08lx %6u %6u %3u%% %4lu %9s %12s\r\n", (uint32_t)tp->wabase,
+																		 (uint32_t)tp,
 																		 sz,
 																		 n,
 																		 used_pct,
-																		 (uint32_t)tp->p_prio,
-																		 states[tp->p_state],
-																		 tp->p_name == NULL ? "NONAME" : tp->p_name);
+																		 (uint32_t)tp->prio,
+																		 states[tp->state],
+																		 tp->name == NULL ? "NONAME" : tp->name);
 
 		tp = chRegNextThread(tp);
 	} while (tp != NULL);
@@ -136,24 +136,24 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	if(time < THREADS_TIMESTAMPS_LOG_SIZE){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
-		tp = ch.rlist.r_newer;
+		tp = ch.rlist.newer;
 		counter = 0;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == in){
 				threads_log_in[time] |= (1 << counter);
 				break;
 			}
-			tp = tp->p_newer;
+			tp = tp->newer;
 			counter++;
 		}
-		tp = ch.rlist.r_newer;
+		tp = ch.rlist.newer;
 		counter = 0;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == out){
 				threads_log_out[time] |= (1 << counter);
 				break;
 			}
-			tp = tp->p_newer;
+			tp = tp->newer;
 			counter++;
 		}
 	}
@@ -182,8 +182,8 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 		}
 	}
    
-	chprintf(out, "Thread : %s\r\n",tp->p_name == NULL ? "NONAME" : tp->p_name); 
-	chprintf(out, "Prio : %d\r\n",tp->p_prio); 
+	chprintf(out, "Thread : %s\r\n",tp->name == NULL ? "NONAME" : tp->name); 
+	chprintf(out, "Prio : %d\r\n",tp->prio); 
 
 	last_case = CASE_INIT;
 

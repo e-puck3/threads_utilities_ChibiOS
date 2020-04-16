@@ -1,16 +1,16 @@
 threads_utilities_ChibiOS
 =========================
-Small library containing several functions to obtain statistics about the threads running like the stack usage or the mcu usage. Another feature is to record the timestamps when ChibiOS does a context switch. Depending on the size alocated for this, a timeline can then be drawn with a python script which gets the data through the USB Shell of ChibiOS.
+Small library containing several functions to obtain statistics about the threads running like the stack usage or the MCU usage. Another feature is to record the timestamps when ChibiOS does a context switch. Depending on the size allocated for this, a timeline can then be drawn with a python script which gets the data through the USB Shell of ChibiOS.
 
 How to add the library to a project
 -----------------------------------
 
 To include the library to your ChibiOS project, simply follow the steps below.
 
-1. Add this git as a sumbodule (or as a simple folder) to your project.
+1. Add this git as a submodule (or as a simple folder) to your project.
 2. Add the specific variables below to your makefile before the **CSRC** definition
 	-	``THDULIB``						: Path to the **threads_utilities_ChibiOS** folder you just added (relative to the ChibiOS makefile)
-	-	``USE_THREADS_TIMESTAMPS``		: yes or no. Tells if you ant to enable the Timestamps functionality
+	-	``USE_THREADS_TIMESTAMPS``		: yes or no. Tells if you want to enable the Timestamps functionality
 	-	``THREADS_TIMESTAMPS_LOG_SIZE``	: Size of the logs for the Timestamps functionality
 	-	``include $(THDULIB)/threads_utilities.mk``
 3. Add these variables in your makefile if it's not already the case
@@ -83,7 +83,7 @@ We can then recover these data and show them on a timeline with the provided Pyt
 
 ### Prerequisite C
 
-1. The recording of the timestamps uses the Hooks possibilities of ChibiOS. Thus it is necessary to add some lines to the **chconf.h** file of your project as followed.
+1. The recording of the timestamps uses the Hooks possibilities of ChibiOS. Thus, it is necessary to add some lines to the **chconf.h** file of your project as followed.
 
 Add the following lines before the ``#define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp)`` hook
 
@@ -116,7 +116,7 @@ Here is an example of a correct **chconf.h** file
 
 
 To be able to send the data, we use the standard USB Shell functionality of ChibiOS. You can find a lot of examples of its use in the **testhal** folder of ChibiOS. They contain the usbcfg.c/.h files to configure the USB and the initialization of the Shell.
-When you have a shell working, you need to add the following line in the commands of the Shell to add the htread_utilities commands:
+When you have a shell working, you need to add the following line in the commands of the Shell to add the thread_utilities commands:
 
 2. Add ``THREADS_UTILITIES_SHELL_CMD`` inside the ``ShellCommand`` array.
 
@@ -163,4 +163,9 @@ With ``ComPort`` being the USB com port to which the Shell is connected.
 Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. 
 Left and Right arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zoom only in the **X** or **Y** axis.
 
-Finally, don't forget to let the time to your code to fill the timestamps logs before reading them with the script. If you have 3 seconds of logs, then wait at least 3 seconds before launching the script. Note that once the logs are full, they are kept and no more modified.
+Also, don't forget to let the time to your code to fill the timestamps logs before reading them with the script. If you have 3 seconds of logs, then wait at least 3 seconds before launching the script. Note that once the logs are full, they are kept and no more modified. Of course, nothing prevents you from using the script while the logs are filling. It will work without problem, the only difference being that the next time you will launch the script you will have more data. This can be useful for example if you want to see the effect of the USB communication on the threads.
+
+Keep in mind that this is just a tool to visualize the threads behavior through time. Since most of the threads accomplish small tasks regularly faster than the system tick of ChibiOS, it will often be possible to see multiple threads started on the same timestamp. This means we can't know the real duration of a thread when it's shorter than the timestamp. For readability, the minimal duration drawn by the script is 0,5 system ticks. 
+Another thing made to improve the readability in the script is to draw **RED BARS** when a thread has been stopped and started on the same timestamp.
+
+Finally, depending on the zoom level, a lot of information are not visible until you zoom in enough to make them drawable by matplotlib.

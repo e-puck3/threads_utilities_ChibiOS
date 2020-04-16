@@ -239,11 +239,13 @@ for i in range(threads_count):
 # to show that a thread has stopped and begun on the same time stamp
 for i in range(threads_count):
 	last_end = 0
+	red_bars = []
 	y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RED_DELIMITER_HEIGHT/2
 	for begin, width in threads[i]['values']:
 		if(last_end == begin):
-			gnt.broken_barh([(begin, RED_DELIMITER_WIDTH)], (y_row , RED_DELIMITER_HEIGHT), facecolors='red')
+			red_bars.append((begin, RED_DELIMITER_WIDTH))
 		last_end = begin + width
+	gnt.broken_barh(red_bars, (y_row , RED_DELIMITER_HEIGHT), facecolors='red')
 
 plt.show()
 

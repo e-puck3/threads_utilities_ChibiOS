@@ -98,6 +98,7 @@ and the following inside the ``#define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp)`` ho
 fillThreadsTimestamps(ntp, otp);
 ```
 Don't forget the ``\`` at the end of the lines inside the hook
+
 Here is an example of a correct **chconf.h** file 
 
 ```c
@@ -151,7 +152,7 @@ static const ShellCommand commands[] = {
 
 ### Usage Python3
 
-To use the python script, **python3**, as well as **matplotlib** should be installed.
+To use the python script, **python3**, as well as **matplotlib** and **pySerial** should be installed.
 
 Then, if the Shell works correctly on the MCU side, you can simply launch the script with the following lines :
  ```
@@ -161,7 +162,7 @@ Then, if the Shell works correctly on the MCU side, you can simply launch the sc
 With ``ComPort`` being the USB com port to which the Shell is connected.
 
 Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. 
-Left and Right arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zoom only in the **X** or **Y** axis.
+``Left`` and ``Right`` arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zoom only in the **X** or **Y** axis.
 
 Also, don't forget to let the time to your code to fill the timestamps logs before reading them with the script. If you have 3 seconds of logs, then wait at least 3 seconds before launching the script. Note that once the logs are full, they are kept and no more modified. Of course, nothing prevents you from using the script while the logs are filling. It will work without problem, the only difference being that the next time you will launch the script you will have more data. This can be useful for example if you want to see the effect of the USB communication on the threads.
 

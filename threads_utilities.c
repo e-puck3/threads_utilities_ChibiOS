@@ -16,8 +16,10 @@
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
-static uint32_t threads_log_in[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
-static uint32_t threads_log_out[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+static uint32_t threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+
+static uint64_t threads_log_mask = (1 << 1);
+
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
 #define CASE_INIT 			0
@@ -131,30 +133,43 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	static thread_t *tp = 0;
 	static thread_t *in = NULL;
 	static thread_t *out = NULL;
-	static uint8_t counter = 0;
+	static uint8_t counter_in = 0;
+	static uint8_t counter_out = 0;
+
+	static uint16_t fill_counter = 0;
+
 	time = chVTGetSystemTimeX();
-	if(time < THREADS_TIMESTAMPS_LOG_SIZE){
+
+	if(fill_counter < THREADS_TIMESTAMPS_LOG_SIZE){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
 		tp = ch.rlist.r_newer;
-		counter = 0;
+		counter_in = 1;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == in){
-				threads_log_in[time] |= (1 << counter);
 				break;
 			}
 			tp = tp->p_newer;
-			counter++;
+			counter_in++;
 		}
+
 		tp = ch.rlist.r_newer;
-		counter = 0;
+		counter_out = 1;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == out){
-				threads_log_out[time] |= (1 << counter);
 				break;
 			}
 			tp = tp->p_newer;
-			counter++;
+			counter_out++;
+		}
+
+		if((threads_log_mask & (1 << counter_in)) || (threads_log_mask & (1 << counter_out))){
+			// max 63 Threads (1-63)
+			// bit 31 to bit 12 time
+			// bit 11 to 6 out thread number (1-63)	
+			// bit 5 to 0 in thread number (1-63)
+			threads_log[fill_counter] = (time << 12) | (counter_out << 6) | counter_in;
+			fill_counter++;
 		}
 	}
 #else
@@ -165,69 +180,82 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 
 void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 #ifdef ENABLE_THREADS_TIMESTAMPS
-	static uint8_t last_case = CASE_INIT;
-	static thread_t *tp = NULL;
-	static uint8_t n = 0;
-	static uint16_t time_in = 0;
-	static uint16_t time_out = 0;
+	// static uint8_t last_case = CASE_INIT;
+	// static thread_t *tp = NULL;
+	// static uint8_t n = 0;
+	// static uint16_t time_in = 0;
+	// static uint16_t time_out = 0;
 
-	n = thread_number;
-	tp = chRegFirstThread();
-	while(n){
-		tp = chRegNextThread(tp);
-		n--;
-		if(tp == NULL){
-			chprintf(out, "This thread doesn't exist\r\n");
-			return;
-		}
-	}
+	// n = thread_number;
+	// tp = chRegFirstThread();
+	// while(n){
+	// 	tp = chRegNextThread(tp);
+	// 	n--;
+	// 	if(tp == NULL){
+	// 		chprintf(out, "This thread doesn't exist\r\n");
+	// 		return;
+	// 	}
+	// }
    
-	chprintf(out, "Thread : %s\r\n",tp->p_name == NULL ? "NONAME" : tp->p_name); 
-	chprintf(out, "Prio : %d\r\n",tp->p_prio); 
+	// chprintf(out, "Thread : %s\r\n",tp->p_name == NULL ? "NONAME" : tp->p_name); 
+	// chprintf(out, "Prio : %d\r\n",tp->p_prio); 
 
-	last_case = CASE_INIT;
+	// last_case = CASE_INIT;
 
-	for(uint16_t i = 0; i < THREADS_TIMESTAMPS_LOG_SIZE; i++){
-		time_in = (threads_log_in[i] & (1 << thread_number));
-		time_out = (threads_log_out[i] & (1 << thread_number));
+	// for(uint16_t i = 0; i < THREADS_TIMESTAMPS_LOG_SIZE; i++){
+	// 	time_in = (threads_log_in[i] & (1 << thread_number));
+	// 	time_out = (threads_log_out[i] & (1 << thread_number));
 
 
-		switch(last_case){
-			case CASE_INIT:
-				if((time_in && time_out) || (!time_in && time_out)){
-					chprintf(out, "%d\r\n", i);	//prints in time
-					chprintf(out, "%d\r\n", i); //prints out time
-					last_case = CASE_OUT;
-				}
-				else if(time_in && !time_out){
-					chprintf(out, "%d\r\n", i);	//prints in time
-					last_case = CASE_IN;
-				}
-				break;
-			case CASE_IN:
-				if(time_out && !time_in){
-					chprintf(out, "%d\r\n", i);	//prints out time
-					last_case = CASE_OUT;
-				}
-				else if(time_in && time_out){
-					chprintf(out, "%d\r\n", i);	//prints out time
-					chprintf(out, "%d\r\n", i);	//prints in time
-					last_case = CASE_IN;
-				}
-				break;
-			case CASE_OUT:
-				if(time_in && !time_out){
-					chprintf(out, "%d\r\n", i);	//prints in time
-					last_case = CASE_IN;
-				}
-				else if(time_in && time_out){
-					chprintf(out, "%d\r\n", i);	//prints in time
-					chprintf(out, "%d\r\n", i);	//prints out time
-					last_case = CASE_OUT;
-				}
-				break;
-		}
+	// 	switch(last_case){
+	// 		case CASE_INIT:
+	// 			if((time_in && time_out) || (!time_in && time_out)){
+	// 				chprintf(out, "%d\r\n", i);	//prints in time
+	// 				chprintf(out, "%d\r\n", i); //prints out time
+	// 				last_case = CASE_OUT;
+	// 			}
+	// 			else if(time_in && !time_out){
+	// 				chprintf(out, "%d\r\n", i);	//prints in time
+	// 				last_case = CASE_IN;
+	// 			}
+	// 			break;
+	// 		case CASE_IN:
+	// 			if(time_out && !time_in){
+	// 				chprintf(out, "%d\r\n", i);	//prints out time
+	// 				last_case = CASE_OUT;
+	// 			}
+	// 			else if(time_in && time_out){
+	// 				chprintf(out, "%d\r\n", i);	//prints out time
+	// 				chprintf(out, "%d\r\n", i);	//prints in time
+	// 				last_case = CASE_IN;
+	// 			}
+	// 			break;
+	// 		case CASE_OUT:
+	// 			if(time_in && !time_out){
+	// 				chprintf(out, "%d\r\n", i);	//prints in time
+	// 				last_case = CASE_IN;
+	// 			}
+	// 			else if(time_in && time_out){
+	// 				chprintf(out, "%d\r\n", i);	//prints in time
+	// 				chprintf(out, "%d\r\n", i);	//prints out time
+	// 				last_case = CASE_OUT;
+	// 			}
+	// 			break;
+	// 	}
 		
+	// }
+
+	static uint8_t thread_in = 0;
+	static uint8_t thread_out = 0;
+	static uint32_t time = 0;
+
+	for(uint32_t i = 0 ; i < THREADS_TIMESTAMPS_LOG_SIZE ; i++){
+		thread_in = threads_log[i] & 0x3F;
+		thread_out = (threads_log[i] >> 6) & 0x3F;
+		if((threads_log_mask & (1 << thread_in)) || (threads_log_mask & (1 << thread_out))){
+			time = (threads_log[i] >> 12) & 0xFFFFF;
+			chprintf(out, "From %2d to %2d at %10d\r\n", thread_out, thread_in, time);
+		}
 	}
 #else
 	(void) thread_number;

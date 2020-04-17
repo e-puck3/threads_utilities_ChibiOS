@@ -7,6 +7,8 @@
 
 #ifdef TIMESTAMPS_INCLUDE
 
+#define THREAD_NB(x) (1 << x)
+
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
 extern "C" {

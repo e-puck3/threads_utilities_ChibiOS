@@ -18,7 +18,7 @@
 #ifdef ENABLE_THREADS_TIMESTAMPS
 static uint32_t threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 
-static uint64_t threads_log_mask = (1 << 1);
+static uint64_t threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
 
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
@@ -111,20 +111,22 @@ void printStatThreads(BaseSequentialStream *out)
 	chprintf(out, "\r\n");
 }
 
-void printCountThreads(BaseSequentialStream *out){
+void printListThreads(BaseSequentialStream *out){
 
 	thread_t *tp;
 
 	uint16_t n = 1;
 
 	tp = chRegFirstThread();
-	tp = chRegNextThread(tp);
 	while(tp != NULL){
-		n++;
+		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
+				n,
+				tp->p_prio,
+				(threads_log_mask & (1 << n)) ? "Yes" : "No",
+				tp->p_name == NULL ? "NONAME" : tp->p_name); 
 		tp = chRegNextThread(tp);
+		n++;
 	}
-	
-	chprintf(out, "Number of threads : %d\r\n",n); 
 }
 
 void fillThreadsTimestamps(void* ntp, void* otp){
@@ -178,7 +180,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
-void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
+void printTimestampsThread(BaseSequentialStream *out){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	// static uint8_t last_case = CASE_INIT;
 	// static thread_t *tp = NULL;
@@ -254,11 +256,10 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 		thread_out = (threads_log[i] >> 6) & 0x3F;
 		if((threads_log_mask & (1 << thread_in)) || (threads_log_mask & (1 << thread_out))){
 			time = (threads_log[i] >> 12) & 0xFFFFF;
-			chprintf(out, "From %2d to %2d at %10d\r\n", thread_out, thread_in, time);
+			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 		}
 	}
 #else
-	(void) thread_number;
 	chprintf(out, "The thread timestamps functionnality is disabled\r\n");
 	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = yes in your makefile \r\n");
 #endif /* ENABLE_THREADS_TIMESTAMPS */
@@ -266,17 +267,17 @@ void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number){
 
 /********************                SHELL FUNCTIONS               ********************/
 
-void cmd_threads_count(BaseSequentialStream *chp, int argc, char *argv[])
+void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[])
 {   
     (void)argc;
     (void)argv;
 
     if (argc > 0) {
-        chprintf(chp, "Usage: threads_count\r\n");
+        chprintf(chp, "Usage: threads_list\r\n");
         return;
     }
     
-    printCountThreads(chp);
+    printListThreads(chp);
 
 }
 
@@ -285,14 +286,12 @@ void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    if (argc != 1) {
-        chprintf(chp, "Usage: threads_timeline numberOfTheThread\r\n");
+    if (argc > 0) {
+        chprintf(chp, "Usage: threads_timeline\r\n");
         return;
     }
-    
-    uint8_t n = atoi(argv[0]);
 
-    printTimestampsThread(chp, n);
+    printTimestampsThread(chp);
 }
 
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])

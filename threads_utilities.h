@@ -33,11 +33,11 @@ void printUcUsage(BaseSequentialStream* out);
 void printStatThreads(BaseSequentialStream *out);
 
 /**     
- * @brief 			Prints the number of threads running
+ * @brief 			Prints a list of the declared threads
  * 
  * @param device 	Pointer to the output
  */	
-void printCountThreads(BaseSequentialStream *out);
+void printListThreads(BaseSequentialStream *out);
 
 /**
  * @brief 			Prints the timeline of the threads, aka the in and out times
@@ -49,7 +49,7 @@ void printCountThreads(BaseSequentialStream *out);
  * 
  * @param device 	Pointer to the output
  */	
-void printTimestampsThread(BaseSequentialStream *out, uint8_t thread_number);
+void printTimestampsThread(BaseSequentialStream *out);
 
 /********************                CHCONF FUNCTION               ********************/
 
@@ -64,10 +64,10 @@ void fillThreadsTimestamps(void* ntp, void* otp);
 /********************                SHELL FUNCTIONS               ********************/
 
 /**     
- * @brief 			Shell command to print the number of threads running
+ * @brief 			Shell command to print the threads declared
  * 					Calls printCountThreads()
  */	
-void cmd_threads_count(BaseSequentialStream *chp, int argc, char *argv[]);
+void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print the number of threads running
  * 					Calls printTimestampsThread()
@@ -85,7 +85,7 @@ void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[]);
 void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #define THREADS_UTILITIES_SHELL_CMD					\
-	{"threads_count",cmd_threads_count},			\
+	{"threads_list",cmd_threads_list},			\
 	{"threads_timeline",cmd_threads_timeline},		\
 	{"threads_stat", cmd_threads_stat},				\
 	{"threads_uc", cmd_threads_uc},					\

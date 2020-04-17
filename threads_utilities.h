@@ -40,7 +40,7 @@ void printStatThreads(BaseSequentialStream *out);
 void printListThreads(BaseSequentialStream *out);
 
 /**
- * @brief 			Prints the timeline of the threads, aka the in and out times
+ * @brief 			Prints the timestamps of the threads, aka the in and out times
  * 					of each running thread that has been recorded by the function fillThreadsTimestamps().
  * 					Made to work in pair with plot_threads_timeline.py to generate a timeline graph which 
  * 					let us visualize when a thread is running.
@@ -72,7 +72,7 @@ void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[]);
  * @brief 			Shell command to print the number of threads running
  * 					Calls printTimestampsThread()
  */	
-void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[]);
+void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print stats abouts the memory usage of the threads
  * 					Calls printStatThreads()
@@ -86,7 +86,7 @@ void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #define THREADS_UTILITIES_SHELL_CMD					\
 	{"threads_list",cmd_threads_list},			\
-	{"threads_timeline",cmd_threads_timeline},		\
+	{"threads_timestamps",cmd_threads_timestamps},		\
 	{"threads_stat", cmd_threads_stat},				\
 	{"threads_uc", cmd_threads_uc},					\
 

@@ -26,6 +26,17 @@ static uint64_t threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
 #define CASE_IN 			1
 #define CASE_OUT 			2
 
+// max 63 Threads (1-63)
+// bit 31 to bit 12 = time
+// bit 11 to bit 6 	= out thread number (1-63)	
+// bit 5  to bit 0 	= in thread number (1-63)
+#define THREAD_IN_POS		0
+#define THREAD_IN_MASK		(0x3F << THREAD_IN_POS)
+#define THREAD_OUT_POS		6
+#define THREAD_OUT_MASK		(0x3F << THREAD_OUT_POS)
+#define TIME_POS			12
+#define TIME_MASK			(0xFFFFF << TIME_POS)
+
 /********************                PUBLIC FUNCTIONS              ********************/
 
 void printUcUsage(BaseSequentialStream* out) {
@@ -166,11 +177,9 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 		}
 
 		if((threads_log_mask & (1 << counter_in)) || (threads_log_mask & (1 << counter_out))){
-			// max 63 Threads (1-63)
-			// bit 31 to bit 12 time
-			// bit 11 to 6 out thread number (1-63)	
-			// bit 5 to 0 in thread number (1-63)
-			threads_log[fill_counter] = (time << 12) | (counter_out << 6) | counter_in;
+			threads_log[fill_counter] = ((time << TIME_POS) & TIME_MASK) 
+										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
+										| ((counter_in << THREAD_IN_POS) & THREAD_IN_MASK);
 			fill_counter++;
 		}
 	}
@@ -252,10 +261,11 @@ void printTimestampsThread(BaseSequentialStream *out){
 	static uint32_t time = 0;
 
 	for(uint32_t i = 0 ; i < THREADS_TIMESTAMPS_LOG_SIZE ; i++){
-		thread_in = threads_log[i] & 0x3F;
-		thread_out = (threads_log[i] >> 6) & 0x3F;
+		thread_in = (threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
+		thread_out = (threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS
+		;
 		if((threads_log_mask & (1 << thread_in)) || (threads_log_mask & (1 << thread_out))){
-			time = (threads_log[i] >> 12) & 0xFFFFF;
+			time = (threads_log[i] & TIME_MASK) >> TIME_POS;
 			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 		}
 	}
@@ -281,13 +291,13 @@ void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[])
 
 }
 
-void cmd_threads_timeline(BaseSequentialStream *chp, int argc, char *argv[])
+void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[])
 {   
     (void)argc;
     (void)argv;
 
     if (argc > 0) {
-        chprintf(chp, "Usage: threads_timeline\r\n");
+        chprintf(chp, "Usage: threads_timestamps\r\n");
         return;
     }
 

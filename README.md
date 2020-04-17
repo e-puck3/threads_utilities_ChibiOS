@@ -164,6 +164,8 @@ With ``ComPort`` being the USB com port to which the Shell is connected.
 Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. 
 ``Left`` and ``Right`` arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zoom only in the **X** or **Y** axis.
 
+A more convenient and smooth way of zooming is by selecting the ``pan/zoom`` button on the bottom left toolbar. Then, with the mouse, it's possible to move with the ``left click`` and zoom with the ``right click``.
+
 Also, don't forget to let the time to your code to fill the timestamps logs before reading them with the script. If you have 3 seconds of logs, then wait at least 3 seconds before launching the script. Note that once the logs are full, they are kept and no more modified. Of course, nothing prevents you from using the script while the logs are filling. It will work without problem, the only difference being that the next time you will launch the script you will have more data. This can be useful for example if you want to see the effect of the USB communication on the threads.
 
 Keep in mind that this is just a tool to visualize the threads behavior through time. Since most of the threads accomplish small tasks regularly faster than the system tick of ChibiOS, it will often be possible to see multiple threads started on the same timestamp. This means we can't know the real duration of a thread when it's shorter than the timestamp. For readability, the minimal duration drawn by the script is 0,5 system ticks. 

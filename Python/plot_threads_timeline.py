@@ -1,7 +1,7 @@
 # File 				: plot_threads_timeline.py 
 # Author 			: Eliot Ferragni
 # Creation date		: 3 april 2020
-# Last modif date	: 9 april 2020
+# Last modif date	: 17 april 2020
 # version			: 1.0
 # Brief				: This script gathers the timestamps of each thread runnnig on an
 #					  e-puck2 configured to use the threads_timestamp functions
@@ -61,23 +61,23 @@ threads_count = 0
 threads_name_list = []
 
 def send_command(command, echo):
-	#sends command "threads_count"
 	if(echo == True):
 		print('sent :',command)
-
-	port.write(bytes(command, 'utf-8')+b'\r\n')
-	time.sleep(0.1)
+	command += '\r\n'
+	for char in command: 
+		port.write(char.encode('utf-8'))
+		time.sleep(0.001)
 
 
 def receive_text(echo):
 	rcv = bytearray([])
-	# If the communication is slow, it's possible to have nothing yet waiting
-	# in the input so we do a read first to let the timout of the port do its work
-	# then we read normally
-	rcv += port.read()
-	while(port.inWaiting()):
-		rcv += port.read()
 
+	# We read until the end of the transmission found by searching 
+	# a new command line "ch> " from the Shell
+	while(True):
+		rcv += port.read()
+		if(rcv[-4:] == b'ch> '):
+			break
 	#converts the bytearray into a string
 	text_rcv = rcv.decode("utf-8")
 	#Splits every line into an array position 
@@ -160,19 +160,23 @@ if len(sys.argv) == 1:
 
 
 try:
-	port = serial.Serial(sys.argv[1], timeout=5)
+	port = serial.Serial(sys.argv[1], timeout=0.1)
 except:
 	print('Cannot connect to the e-puck2')
 	sys.exit(0)
 
 print('Connecting to port {}'.format(sys.argv[1]))
 
-time.sleep(0.5)
+# In case there was a communication problem
+# we send two return commands to trigger the sending of 
+# a new command line from the Shell (to begin from the beginning)
+port.write(b'\r\n')
+port.write(b'\r\n')
+time.sleep(0.1)
 
 #flush the input
 while(port.inWaiting()):
 	port.read()
-	time.sleep(0.1)
 
 #sends command "threads_count"
 send_command('threads_count', False)

@@ -12,6 +12,7 @@
 #					  To run the script : "python3 plot_threads_timeline.py serialPort"
 
 import matplotlib.pyplot as plt
+import  matplotlib.ticker as tick
 import numpy as np
 import random
 import serial
@@ -54,7 +55,7 @@ SPACING_Y_TICKS = 10
 RECT_HEIGHT = 10
 RED_DELIMITER_HEIGHT = 12
 RED_DELIMITER_WIDTH = 0.1
-MINIMUM_THREAD_DURATION = 0.5
+MINIMUM_THREAD_DURATION = 0.1
 
 threads = []
 threads_name_list = []
@@ -125,49 +126,71 @@ def process_threads_timestamps_cmd(lines):
 	# line 0 			: threads_timestanps
 	# line 1 -> n-1 	: From xx to xx at xxxxxxx
 	# line n			: ch>
+	counter = 0
+	max_counter = 0
+	last_time = None
 	for i in range(1,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
-		threads[thread_out-1]['raw_values'].append((time, 'out'))
-		threads[thread_in-1]['raw_values'].append((time, 'in'))
+		if (time != last_time):
+			counter = 0
+		else:
+			counter += 1 
+		threads[thread_out-1]['raw_values'].append((time, 'out', counter))
+		threads[thread_in-1]['raw_values'].append((time, 'in', counter))
+		last_time = time
+		# We need to know the maximum of IN and OUT times during the same timetamp to be able to do
+		# correctly the subdivisions on the timeline
+		if(counter > max_counter):
+			max_counter = counter
+
+	step = 1/max_counter
 
 	for thread in threads:
-		if(thread['log']):
+		if(len(thread['raw_values']) > 0):
+			if(thread['log']):
 
-			# Insert an in time in case the first we encounter is an out time
-			# Happens with the main thread
-			if(thread['raw_values'][0][1] == 'out'):
-				thread['raw_values'].insert(0,(thread['raw_values'][0][0],'in'))
+				# Insert an in time in case the first we encounter is an out time
+				# Happens with the main thread
+				if(thread['raw_values'][0][1] == 'out'):
+					thread['raw_values'].insert(0, (thread['raw_values'][0][0],'in', 0))
 
-			# Removes the last value if the number of value is odd
-			# because we need a pair of values
-			if(len(thread['raw_values']) % 2):
-				thread['raw_values'].pop(-1)
+				# Removes the last value if the number of value is odd
+				# because we need a pair of values
+				if(len(thread['raw_values']) % 2):
+					thread['raw_values'].pop(-1)
 
-			# Adds the values by pair to the thread
-			for i in range(0, len(thread['raw_values']), 2):
-				# The format for broken_barh needs to be (begin, width)
-				width = thread['raw_values'][i+1][0] - thread['raw_values'][i][0]
-				if(width <  MINIMUM_THREAD_DURATION):
-					thread['values'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
-				else:
-					thread['values'].append((thread['raw_values'][i][0], width))
-			# Indicates if we have timestamps to draw
-			if(len(thread['values']) > 0):
-				thread['have_values'] = True
-		else:
-			# Adds one by one the incomplete values
-			for i in range(0, len(thread['raw_values']), 1):
-				# The format for broken_barh needs to be (begin, width)
-				if(thread['raw_values'][i][1] == 'in'):
-					thread['values_in'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
-				else:
-					thread['values_out'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
+				# Adds the values by pair to the thread
+				for i in range(0, len(thread['raw_values']), 2):
+					# The format for broken_barh needs to be (begin, width)
+					shift = thread['raw_values'][i][2] * step
+					begin = thread['raw_values'][i][0] + shift
+					width = thread['raw_values'][i+1][0] - thread['raw_values'][i][0] - shift
+					
+					if(width <  1):
+						thread['values'].append((begin, step))
+					else:
+						thread['values'].append((begin, width))
+				# Indicates if we have timestamps to draw
+				if(len(thread['values']) > 0):
+					thread['have_values'] = True
+			else:
+				# Adds one by one the incomplete values
+				for i in range(0, len(thread['raw_values']), 1):
+					# The format for broken_barh needs to be (begin, width)
+					shift = thread['raw_values'][i][2] * step
+					begin = thread['raw_values'][i][0] + shift
+					if(thread['raw_values'][i][1] == 'in'):
+						thread['values_in'].append((begin, step))
+					else:
+						thread['values_out'].append((begin, step))
 
-			# Indicates if we have timestamps to draw
-			if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):
-				thread['have_values'] = True
+				# Indicates if we have timestamps to draw
+				if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):
+					thread['have_values'] = True
+
+	return max_counter
 
 def process_threads_timeline_cmd(lines):
 	# What we should receive :
@@ -255,7 +278,7 @@ process_threads_list_cmd(rcv_lines)
 # Sends command "threads_timestamps"
 send_command('threads_timestamps', True)
 rcv_lines = receive_text(False)
-process_threads_timestamps_cmd(rcv_lines)
+nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
 
 # # Sends command "threads_timeline x" threads_count times to recover all the threads logs
 # for i in range(threads_count):
@@ -306,6 +329,11 @@ gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, 
 # Labelling tickes of y-axis 
 gnt.set_yticklabels(threads_name_list, multialignment='center')
 
+gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
+gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+gnt.grid(which='major', color='#000000', linestyle='-')
+gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
+
 # Setting graph attribute 
 gnt.grid(b = True, which='both')
 
@@ -313,16 +341,19 @@ gnt.grid(b = True, which='both')
 colors=['green','blue','cyan','black']
 
 # Draws a rectangle every time a thread is running
-i = 0
+row = 0
 for thread in threads:
 	if(thread['have_values']):
-		y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2
+		y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
 		if(thread['log']):
+			# If de data are complete (aka this thread was logged), we draw the rectangles
 			gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
 		else:
+			# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
+			# we draw the IN times in Green and the OUT in RED
 			gnt.broken_barh(thread['values_in'], (y_row, RECT_HEIGHT), facecolors='green')
 			gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
-		i += 1
+		row += 1
 
 # # Draws a red delimiter on top of the rectangles 
 # # to show that a thread has stopped and begun on the same time stamp

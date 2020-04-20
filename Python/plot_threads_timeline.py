@@ -112,9 +112,14 @@ def process_threads_list_cmd(lines):
 		prio 	= int(lines[i][len('Thread number xx : Prio = '):len('Thread number xx : Prio = ')+3])
 		log 	= lines[i][len('Thread number xx : Prio = xxx, Log = '):len('Thread number xx : Prio = xxx, Log = ')+3]
 		name 	= lines[i][len('Thread number xx : Prio = xxx, Log = xxx, Name = '):]
-		# Adds a thread to the threads list
-		threads.append({'name': name,'nb': nb,'prio': prio,'log': log=='Yes', 'raw_values': [], 'values': []})
-
+		# Different way of storing the timestamps if logged or not
+		if(log == 'Yes'):	
+			# Adds a logged thread to the threads list
+			threads.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
+		else:
+			# Adds a non logged thread to the threads list
+			threads.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
+		
 def process_threads_timestamps_cmd(lines):
 	# What we should receive :
 	# line 0 			: threads_timestanps
@@ -127,8 +132,6 @@ def process_threads_timestamps_cmd(lines):
 		threads[thread_out-1]['raw_values'].append((time, 'out'))
 		threads[thread_in-1]['raw_values'].append((time, 'in'))
 
-	# for v in threads[1]['raw_values']:
-	# 	print(v)
 	for thread in threads:
 		if(thread['log']):
 
@@ -150,7 +153,21 @@ def process_threads_timestamps_cmd(lines):
 					thread['values'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
 				else:
 					thread['values'].append((thread['raw_values'][i][0], width))
+			# Indicates if we have timestamps to draw
+			if(len(thread['values']) > 0):
+				thread['have_values'] = True
+		else:
+			# Adds one by one the incomplete values
+			for i in range(0, len(thread['raw_values']), 1):
+				# The format for broken_barh needs to be (begin, width)
+				if(thread['raw_values'][i][1] == 'in'):
+					thread['values_in'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
+				else:
+					thread['values_out'].append((thread['raw_values'][i][0], MINIMUM_THREAD_DURATION))
 
+			# Indicates if we have timestamps to draw
+			if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):
+				thread['have_values'] = True
 
 def process_threads_timeline_cmd(lines):
 	# What we should receive :
@@ -249,7 +266,7 @@ process_threads_timestamps_cmd(rcv_lines)
 sort_threads_by_prio()
 
 for thread in threads:
-	if(thread['log']):
+	if(thread['have_values']):
 		# Splits th names into multiple lines to spare space next to the graph
 		threads_name_list.append(thread['name'].replace(' ','\n') + '\nPrio:'+ str(thread['prio']))
 
@@ -298,10 +315,13 @@ colors=['green','blue','cyan','black']
 # Draws a rectangle every time a thread is running
 i = 0
 for thread in threads:
-	if(thread['log']):
-		color = random.randrange(0,len(colors),1)
+	if(thread['have_values']):
 		y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RECT_HEIGHT/2
-		gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors=colors[color])
+		if(thread['log']):
+			gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
+		else:
+			gnt.broken_barh(thread['values_in'], (y_row, RECT_HEIGHT), facecolors='green')
+			gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
 		i += 1
 
 # # Draws a red delimiter on top of the rectangles 

@@ -330,7 +330,7 @@ gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, 
 gnt.set_yticklabels(threads_name_list, multialignment='center')
 
 gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
-gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+#gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
 gnt.grid(which='major', color='#000000', linestyle='-')
 gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
 
@@ -368,6 +368,16 @@ for thread in threads:
 # 	# Draws all the red bars at once, otherwise the graph has a really bad response time
 # 	gnt.broken_barh(red_bars, (y_row , RED_DELIMITER_HEIGHT), facecolors='red')
 
+
+# 
+def on_xlims_change(axes):
+    a=axes.get_xlim()
+    if((a[1]-a[0]) > 8):
+    	gnt.xaxis.set_minor_locator(tick.NullLocator())
+    else:
+    	gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+
+gnt.callbacks.connect('xlim_changed', on_xlims_change)
 plt.show()
 
 # Be polite, say goodbye :-)

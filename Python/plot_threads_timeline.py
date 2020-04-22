@@ -3,7 +3,7 @@
 # Creation date		: 3 april 2020
 # Last modif date	: 17 april 2020
 # version			: 1.0
-# Brief				: This script gathers the timestamps of each thread runnnig on an
+# Brief				: This script gathers the timestamps of each thread to log on an
 #					  e-puck2 configured to use the threads_timestamp functions
 #					  in the threads_utilities.c/.h files
 #					  Then it prints them on a timeline in order to let the user visualize 
@@ -49,16 +49,37 @@ goodbye2 = """
                                |___/        
 """
 
+WINDOWS_SIZE_X 		= 15
+WINDOWS_SIZE_Y 		= 10
+WINDOWS_DPI			= 90
+SUBPLOT_ADJ_RIGHT	= 0.97
+SUBPLOT_ADJ_TOP		= 0.96
 
 START_Y_TICKS = 10
 SPACING_Y_TICKS = 10
 RECT_HEIGHT = 10
-RED_DELIMITER_HEIGHT = 12
-RED_DELIMITER_WIDTH = 0.1
-MINIMUM_THREAD_DURATION = 0.1
+MINIMUM_THREAD_DURATION = 1
+ZOOM_LEVEL_THRESHOLD = 8
+
+# for the raw_values field of a thread
+VALUE 		= 0
+IN_OUT_TYPE	= 1
+SHIFT_NB	= 2
 
 threads = []
 threads_name_list = []
+
+def flush_shell():
+	# In case there was a communication problem
+	# we send two return commands to trigger the sending of 
+	# a new command line from the Shell (to begin from the beginning)
+	port.write(b'\r\n')
+	port.write(b'\r\n')
+	time.sleep(0.1)
+
+	# Flushes the input
+	while(port.inWaiting()):
+		port.read()
 
 def send_command(command, echo):
 	if(echo == True):
@@ -76,7 +97,7 @@ def receive_text(echo):
 	rcv = bytearray([])
 
 	# We read until the end of the transmission found by searching 
-	# a the beginning of new command line "ch> " from the Shell
+	# the beginning of a new command line "ch> " from the Shell
 	while(True):
 		rcv += port.read()
 		if(rcv[-4:] == b'ch> '):
@@ -91,17 +112,6 @@ def receive_text(echo):
 
 	return text_lines
 
-def process_threads_count_cmd(lines, echo):
-	# What we should receive :
-	# line 0 			: threads_count
-	# line 1 			: Number of threads : numberOfThreads
-	# line 2			: ch>
-	
-	nb = int(lines[1][len('Number of threads : '):])
-	if(echo == True):
-		print('There are {} threads alive'.format(nb))
-
-	return nb
 def process_threads_list_cmd(lines):
 	# What we should receive :
 	# line 0 			: threads_list
@@ -123,16 +133,19 @@ def process_threads_list_cmd(lines):
 		
 def process_threads_timestamps_cmd(lines):
 	# What we should receive :
-	# line 0 			: threads_timestanps
+	# line 0 			: threads_timestamps
 	# line 1 -> n-1 	: From xx to xx at xxxxxxx
 	# line n			: ch>
 	counter = 0
 	max_counter = 0
 	last_time = None
+	step = MINIMUM_THREAD_DURATION
 	for i in range(1,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
+		# Counts how many time we enter and leave threads during the same timestamp
+		# to be able to show it on the timeline
 		if (time != last_time):
 			counter = 0
 		else:
@@ -145,16 +158,17 @@ def process_threads_timestamps_cmd(lines):
 		if(counter > max_counter):
 			max_counter = counter
 
-	step = 1/max_counter
+	if(max_counter > 0):
+		step = 1/max_counter
 
 	for thread in threads:
 		if(len(thread['raw_values']) > 0):
 			if(thread['log']):
 
-				# Insert an in time in case the first we encounter is an out time
+				# Insert an IN time in case the first we encounter is an out time
 				# Happens with the main thread
-				if(thread['raw_values'][0][1] == 'out'):
-					thread['raw_values'].insert(0, (thread['raw_values'][0][0],'in', 0))
+				if(thread['raw_values'][0][IN_OUT_TYPE] == 'out'):
+					thread['raw_values'].insert(0, (thread['raw_values'][0][VALUE],'in', 0))
 
 				# Removes the last value if the number of value is odd
 				# because we need a pair of values
@@ -164,9 +178,9 @@ def process_threads_timestamps_cmd(lines):
 				# Adds the values by pair to the thread
 				for i in range(0, len(thread['raw_values']), 2):
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][2] * step
-					begin = thread['raw_values'][i][0] + shift
-					width = thread['raw_values'][i+1][0] - thread['raw_values'][i][0] - shift
+					shift = thread['raw_values'][i][SHIFT_NB] * step
+					begin = thread['raw_values'][i][VALUE] + shift
+					width = thread['raw_values'][i+1][VALUE] - thread['raw_values'][i][VALUE] - shift
 					
 					if(width <  1):
 						thread['values'].append((begin, step))
@@ -179,9 +193,9 @@ def process_threads_timestamps_cmd(lines):
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][2] * step
-					begin = thread['raw_values'][i][0] + shift
-					if(thread['raw_values'][i][1] == 'in'):
+					shift = thread['raw_values'][i][SHIFT_NB] * step
+					begin = thread['raw_values'][i][VALUE] + shift
+					if(thread['raw_values'][i][IN_OUT_TYPE] == 'in'):
 						thread['values_in'].append((begin, step))
 					else:
 						thread['values_out'].append((begin, step))
@@ -191,48 +205,6 @@ def process_threads_timestamps_cmd(lines):
 					thread['have_values'] = True
 
 	return max_counter
-
-def process_threads_timeline_cmd(lines):
-	# What we should receive :
-	# line 0 			: threads_timeline numberOfTheThread
-	# line 1 			: Thread : nameOfTheThread
-	# line 2 			: Prio : prioOfTheThread
-	# lines 3 -> n-1	: timestamps
-	# line n			: ch>
-
-	# Extracts the name of the thread
-	name = lines[1][len('Thread : '):]
-	# If we can't extract a number, we print the lines to show the error
-	try:
-		# Extracts the prio of the tread
-		prio = int(lines[2][len('Prio : '):])
-	except:
-		print(lines[1:-1])
-		sys.exit(0)
-
-	# Adds a thread to the threads list
-	threads.append({'name': name,'prio': prio, 'values': []})
-
-	if(len(lines) > 4):
-		# Extracts the values
-		# len(lines)-1 to not take the "ch> " at the end
-		values = []
-		for i in range(3, len(lines)-1):
-			values.append(int(lines[i]))
-
-		# Removes the last value if the number of value is odd
-		# because we need a pair of values
-		if(len(values) % 2):
-			values.pop(-1)
-
-		# Adds the values by pair to the last thread (aka the one we just created)
-		for i in range(0, len(values), 2):
-			# The format for broken_barh needs to be (begin, width)
-			width = values[i+1] - values[i]
-			if(width <  MINIMUM_THREAD_DURATION):
-				threads[-1]['values'].append((values[i], MINIMUM_THREAD_DURATION))
-			else:
-				threads[-1]['values'].append((values[i], width))
 
 def get_thread_prio(thread):
 	return thread['prio']
@@ -254,37 +226,17 @@ except:
 
 print('Connecting to port {}'.format(sys.argv[1]))
 
-# In case there was a communication problem
-# we send two return commands to trigger the sending of 
-# a new command line from the Shell (to begin from the beginning)
-port.write(b'\r\n')
-port.write(b'\r\n')
-time.sleep(0.1)
-
-# Flushes the input
-while(port.inWaiting()):
-	port.read()
+flush_shell()
 
 # Sends command "threads_list"
 send_command('threads_list', True)
 rcv_lines = receive_text(True)
 process_threads_list_cmd(rcv_lines)
 
-# # Sends command "threads_count"
-# send_command('threads_count', False)
-# rcv_lines = receive_text(False)
-# threads_count = process_threads_count_cmd(rcv_lines, True)
-
 # Sends command "threads_timestamps"
 send_command('threads_timestamps', True)
 rcv_lines = receive_text(False)
 nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
-
-# # Sends command "threads_timeline x" threads_count times to recover all the threads logs
-# for i in range(threads_count):
-# 	send_command('threads_timeline ' + str(i), True)
-# 	rcv_lines = receive_text(False)
-# 	process_threads_timeline_cmd(rcv_lines)
 
 sort_threads_by_prio()
 
@@ -308,9 +260,9 @@ print('Port {} closed'.format(sys.argv[1]))
 
 # Declaring a figure "gnt" 
 # figsize is in inch
-fig, gnt = plt.subplots(figsize=(15, 10), dpi=90)
+fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DPI)
 
-plt.subplots_adjust(right=0.97, top=0.96)
+plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
 
 # Setting Y-axis limits 
 #gnt.set_ylim(0, 30) 
@@ -330,7 +282,6 @@ gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, 
 gnt.set_yticklabels(threads_name_list, multialignment='center')
 
 gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
-#gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
 gnt.grid(which='major', color='#000000', linestyle='-')
 gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
 
@@ -355,24 +306,11 @@ for thread in threads:
 			gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
 		row += 1
 
-# # Draws a red delimiter on top of the rectangles 
-# # to show that a thread has stopped and begun on the same time stamp
-# for i in range(threads_count):
-# 	last_end = 0
-# 	red_bars = []
-# 	y_row = (START_Y_TICKS +  SPACING_Y_TICKS * i) - RED_DELIMITER_HEIGHT/2
-# 	for begin, width in threads[i]['values']:
-# 		if(last_end == begin):
-# 			red_bars.append((begin, RED_DELIMITER_WIDTH))
-# 		last_end = begin + width
-# 	# Draws all the red bars at once, otherwise the graph has a really bad response time
-# 	gnt.broken_barh(red_bars, (y_row , RED_DELIMITER_HEIGHT), facecolors='red')
-
-
-# 
+# When the zoom is close enough, we enable the minor grid
+# otherwise the graph is really slow
 def on_xlims_change(axes):
     a=axes.get_xlim()
-    if((a[1]-a[0]) > 8):
+    if((a[1]-a[0]) > ZOOM_LEVEL_THRESHOLD):
     	gnt.xaxis.set_minor_locator(tick.NullLocator())
     else:
     	gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))

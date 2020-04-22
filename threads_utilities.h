@@ -40,7 +40,7 @@ void printStatThreads(BaseSequentialStream *out);
 void printListThreads(BaseSequentialStream *out);
 
 /**
- * @brief 			Prints the timestamps of the threads, aka the in and out times
+ * @brief 			Prints the timestamps of the threads, aka the IN and OUT times
  * 					of each running thread that has been recorded by the function fillThreadsTimestamps().
  * 					Made to work in pair with plot_threads_timeline.py to generate a timeline graph which 
  * 					let us visualize when a thread is running.
@@ -54,7 +54,7 @@ void printTimestampsThread(BaseSequentialStream *out);
 /********************                CHCONF FUNCTION               ********************/
 
 /**
- * @brief 			Saves the in and out times of each running thread while the buffers aren't full.
+ * @brief 			Saves the IN and OUT times of each thread to log while the buffers aren't full.
  * 					To be called by the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
  * 
  * @param device 	Pointer to the output
@@ -65,7 +65,7 @@ void fillThreadsTimestamps(void* ntp, void* otp);
 
 /**     
  * @brief 			Shell command to print the threads declared
- * 					Calls printCountThreads()
+ * 					Calls printListThreads()
  */	
 void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     

@@ -22,11 +22,7 @@ static uint64_t threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
 
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
-#define CASE_INIT 			0
-#define CASE_IN 			1
-#define CASE_OUT 			2
-
-// max 63 Threads (1-63)
+// max 63 Threads (1-63), 0 means nothing
 // bit 31 to bit 12 = time
 // bit 11 to bit 6 	= out thread number (1-63)	
 // bit 5  to bit 0 	= in thread number (1-63)
@@ -133,7 +129,11 @@ void printListThreads(BaseSequentialStream *out){
 		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
 				n,
 				tp->p_prio,
+#ifdef ENABLE_THREADS_TIMESTAMPS
 				(threads_log_mask & (1 << n)) ? "Yes" : "No",
+#else
+				"No",
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 				tp->p_name == NULL ? "NONAME" : tp->p_name); 
 		tp = chRegNextThread(tp);
 		n++;
@@ -191,71 +191,6 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 
 void printTimestampsThread(BaseSequentialStream *out){
 #ifdef ENABLE_THREADS_TIMESTAMPS
-	// static uint8_t last_case = CASE_INIT;
-	// static thread_t *tp = NULL;
-	// static uint8_t n = 0;
-	// static uint16_t time_in = 0;
-	// static uint16_t time_out = 0;
-
-	// n = thread_number;
-	// tp = chRegFirstThread();
-	// while(n){
-	// 	tp = chRegNextThread(tp);
-	// 	n--;
-	// 	if(tp == NULL){
-	// 		chprintf(out, "This thread doesn't exist\r\n");
-	// 		return;
-	// 	}
-	// }
-   
-	// chprintf(out, "Thread : %s\r\n",tp->p_name == NULL ? "NONAME" : tp->p_name); 
-	// chprintf(out, "Prio : %d\r\n",tp->p_prio); 
-
-	// last_case = CASE_INIT;
-
-	// for(uint16_t i = 0; i < THREADS_TIMESTAMPS_LOG_SIZE; i++){
-	// 	time_in = (threads_log_in[i] & (1 << thread_number));
-	// 	time_out = (threads_log_out[i] & (1 << thread_number));
-
-
-	// 	switch(last_case){
-	// 		case CASE_INIT:
-	// 			if((time_in && time_out) || (!time_in && time_out)){
-	// 				chprintf(out, "%d\r\n", i);	//prints in time
-	// 				chprintf(out, "%d\r\n", i); //prints out time
-	// 				last_case = CASE_OUT;
-	// 			}
-	// 			else if(time_in && !time_out){
-	// 				chprintf(out, "%d\r\n", i);	//prints in time
-	// 				last_case = CASE_IN;
-	// 			}
-	// 			break;
-	// 		case CASE_IN:
-	// 			if(time_out && !time_in){
-	// 				chprintf(out, "%d\r\n", i);	//prints out time
-	// 				last_case = CASE_OUT;
-	// 			}
-	// 			else if(time_in && time_out){
-	// 				chprintf(out, "%d\r\n", i);	//prints out time
-	// 				chprintf(out, "%d\r\n", i);	//prints in time
-	// 				last_case = CASE_IN;
-	// 			}
-	// 			break;
-	// 		case CASE_OUT:
-	// 			if(time_in && !time_out){
-	// 				chprintf(out, "%d\r\n", i);	//prints in time
-	// 				last_case = CASE_IN;
-	// 			}
-	// 			else if(time_in && time_out){
-	// 				chprintf(out, "%d\r\n", i);	//prints in time
-	// 				chprintf(out, "%d\r\n", i);	//prints out time
-	// 				last_case = CASE_OUT;
-	// 			}
-	// 			break;
-	// 	}
-		
-	// }
-
 	static uint8_t thread_in = 0;
 	static uint8_t thread_out = 0;
 	static uint32_t time = 0;

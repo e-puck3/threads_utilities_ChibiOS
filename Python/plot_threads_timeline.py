@@ -20,7 +20,7 @@ import struct
 import sys
 import time
 
-goodbye = """
+GOODBYE = """
           |\      _,,,---,,_
           /,`.-'`'    -.  ;-;;,_
          |,4-  ) )-,_..;\ (  `'-'
@@ -34,7 +34,7 @@ goodbye = """
 (_______)(_______)(_______)(______/ |______/    \_/   (_______/(_)                                         
 """
 
-goodbye2 = """
+GOODBYE2 = """
                    /\_/\\
                  =( °w° )=
                    )   (  //
@@ -48,6 +48,8 @@ goodbye2 = """
                                 __/ |       
                                |___/        
 """
+
+NEW_RECEIVED_LINE = '> '
 
 WINDOWS_SIZE_X 		= 15
 WINDOWS_SIZE_Y 		= 10
@@ -108,7 +110,8 @@ def receive_text(echo):
 	text_lines = text_rcv.split('\r\n')
 
 	if(echo == True):
-		print(text_rcv)
+		for line in text_lines:
+			print(NEW_RECEIVED_LINE, line)
 
 	return text_lines
 
@@ -118,6 +121,13 @@ def process_threads_list_cmd(lines):
 	# line 1 -> n-1 	: Thread number xx : Prio = xxx, Log = xxx, Name = str
 	# line n			: ch>
 	
+		# If the received text doesn't match what we expect, print it and quit
+	if(lines[1][:len('Thread number')] != 'Thread number'):
+		print('Bad answer received, see below :')
+		for line in lines:
+			print(NEW_RECEIVED_LINE, line)
+		sys.exit(0)
+
 	for i in range(1,len(lines)-1):
 		nb 		= int(lines[i][len('Thread number '):len('Thread number ')+2])
 		prio 	= int(lines[i][len('Thread number xx : Prio = '):len('Thread number xx : Prio = ')+3])
@@ -140,6 +150,14 @@ def process_threads_timestamps_cmd(lines):
 	max_counter = 0
 	last_time = None
 	step = MINIMUM_THREAD_DURATION
+
+	# If the received text doesn't match what we expect, print it and quit
+	if(lines[1][:len('From ')] != 'From '):
+		print('Bad answer received, see below :')
+		for line in lines:
+			print(NEW_RECEIVED_LINE, line)
+		sys.exit(0)
+
 	for i in range(1,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
@@ -319,4 +337,4 @@ gnt.callbacks.connect('xlim_changed', on_xlims_change)
 plt.show()
 
 # Be polite, say goodbye :-)
-print(goodbye)
+print(GOODBYE)

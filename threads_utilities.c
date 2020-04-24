@@ -258,6 +258,12 @@ void printTimestampsThread(BaseSequentialStream *out){
 	static uint8_t thread_out = 0;
 	static uint32_t time = 0;
 
+#ifdef TIMESTAMPS_TRIGGER_MODE
+	if(_triggered){
+		chprintf(out, "Triggered at %7d\r\n", _trigger_time);
+	}
+#endif /* TIMESTAMPS_TRIGGER_MODE */
+	
 	for(uint32_t i = 0 ; i < THREADS_TIMESTAMPS_LOG_SIZE ; i++){
 		thread_in = (_threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
 		thread_out = (_threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS;

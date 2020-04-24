@@ -21,9 +21,9 @@ import sys
 import time
 
 GOODBYE = """
-          |\      _,,,---,,_
-          /,`.-'`'    -.  ;-;;,_
-         |,4-  ) )-,_..;\ (  `'-'
+		  |\      _,,,---,,_
+		  /,`.-'`'    -.  ;-;;,_
+		 |,4-  ) )-,_..;\ (  `'-'
  _______'---''(_/--'__`-'\_)______   ______            _______  _
 (  ____ \(  ___  )(  ___  )(  __  \ (  ___ \ |\     /|(  ____ \| |
 | (    \/| (   ) || (   ) || (  \  )| (   ) )( \   / )| (    \/| |
@@ -35,18 +35,18 @@ GOODBYE = """
 """
 
 GOODBYE2 = """
-                   /\_/\\
-                 =( °w° )=
-                   )   (  //
-                  (__ __)//
+				   /\_/\\
+				 =( °w° )=
+				   )   (  //
+				  (__ __)//
  _____                 _ _                _ 
 |  __ \               | | |              | |
 | |  \/ ___   ___   __| | |__  _   _  ___| |
 | | __ / _ \ / _ \ / _` | '_ \| | | |/ _ \ |
 | |_\ \ (_) | (_) | (_| | |_) | |_| |  __/_|
  \____/\___/ \___/ \__,_|_.__/ \__, |\___(_)
-                                __/ |       
-                               |___/        
+								__/ |       
+							   |___/        
 """
 
 NEW_RECEIVED_LINE = '> '
@@ -61,6 +61,7 @@ START_Y_TICKS 				= 10
 SPACING_Y_TICKS 			= 10
 RECT_HEIGHT 				= 10
 MINIMUM_THREAD_DURATION 	= 1
+VISUAL_WIDTH_TRIGGER		= 5 # no unit
 DIVISION_FACTOR_TICK_STEP 	= 3
 ZOOM_LEVEL_THRESHOLD 		= 8
 
@@ -76,6 +77,7 @@ RAW_SHIFT_NB	= 2
 
 threads = []
 threads_name_list = []
+trigger_time = 0
 
 def flush_shell():
 	# In case there was a communication problem
@@ -151,20 +153,33 @@ def get_extracted_values_time(elem):
 	return elem[2]
 
 def process_threads_timestamps_cmd(lines):
-	# What we should receive :
+	# What we should receive (one more line if the trigger mode is enabled) :
 	# line 0 			: threads_timestamps
-	# line 1 -> n-1 	: From xx to xx at xxxxxxx
+	# (line 1)			: Triggered at xxxxxxx
+	# line 1 (2) -> n-1 : From xx to xx at xxxxxxx
 	# line n			: ch>
 
+	first_data_line = 1
+
+	# Gets the trigger time if any
+	if(lines[first_data_line][:len('Triggered at ')] == 'Triggered at '):
+		global trigger_time
+		trigger_time = int(lines[first_data_line][len('Triggered at '):])
+		first_data_line = 2
+	# No trigger
+	else:
+		trigger_time = 0
+
 	# If the received text doesn't match what we expect, print it and quit
-	if(lines[1][:len('From ')] != 'From '):
+	if(lines[first_data_line][:len('From ')] != 'From '):
 		print('Bad answer received, see below :')
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
 		sys.exit(0)
 
+	# We store the valus in an array in order to sort them before processing them
 	extracted_values = []
-	for i in range(1,len(lines)-1):
+	for i in range(first_data_line,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
@@ -178,6 +193,7 @@ def process_threads_timestamps_cmd(lines):
 	max_counter = 0
 	last_time = None
 
+	# Processes the values by writing them to the related threads
 	for i in range(len(extracted_values)):
 		thread_out 	= extracted_values[i][EXCTR_THREAD_OUT]
 		thread_in 	= extracted_values[i][EXCTR_THREAD_IN]
@@ -263,6 +279,34 @@ def get_thread_prio(thread):
 
 def sort_threads_by_prio():
 	threads.sort(key=get_thread_prio)
+
+trigger_bar = None
+# We enable the minor grid only when the zoom is close enough, 
+# otherwise the graph is really slow
+# We also redraw the trigger bar in a way that its visual width is constant
+def on_xlims_change(axes):
+	global trigger_bar
+	a=axes.get_xlim()
+	values_number = a[1]-a[0]
+
+	if(values_number > ZOOM_LEVEL_THRESHOLD):
+		gnt.xaxis.set_minor_locator(tick.NullLocator())
+	else:
+		gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+
+	# Redraws the trigger only if we have one value
+	if(trigger_time > 0):
+		trigger_width = VISUAL_WIDTH_TRIGGER * values_number/(fig.get_figwidth()*WINDOWS_DPI)
+		if(trigger_bar != None):
+			trigger_bar.remove()
+		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red')
+	else:
+		if(trigger_bar != None):
+			trigger_bar.remove()
+			trigger_bar = None
+
+
+###################              BEGINNING OF PROGRAMM               ###################
 
 # Tests if the serial port as been given as argument in the terminal
 if len(sys.argv) == 1:
@@ -358,14 +402,8 @@ for thread in threads:
 			gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
 		row += 1
 
-# When the zoom is close enough, we enable the minor grid
-# otherwise the graph is really slow
-def on_xlims_change(axes):
-    a=axes.get_xlim()
-    if((a[1]-a[0]) > ZOOM_LEVEL_THRESHOLD):
-    	gnt.xaxis.set_minor_locator(tick.NullLocator())
-    else:
-    	gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+# We manually call this callback to draw correctly the first time the trigger bar
+on_xlims_change(gnt.axes)
 
 gnt.callbacks.connect('xlim_changed', on_xlims_change)
 plt.show()

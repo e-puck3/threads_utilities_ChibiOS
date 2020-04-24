@@ -63,10 +63,15 @@ RECT_HEIGHT = 10
 MINIMUM_THREAD_DURATION = 1
 ZOOM_LEVEL_THRESHOLD = 8
 
+# for the extracted values fields
+EXCTR_THREAD_OUT 	= 0
+EXCTR_THREAD_IN	= 1
+EXCTR_TIME		= 2
+
 # for the raw_values field of a thread
-VALUE 		= 0
-IN_OUT_TYPE	= 1
-SHIFT_NB	= 2
+RAW_TIME 		= 0
+RAW_IN_OUT_TYPE	= 1
+RAW_SHIFT_NB	= 2
 
 threads = []
 threads_name_list = []
@@ -140,16 +145,15 @@ def process_threads_list_cmd(lines):
 		else:
 			# Adds a non logged thread to the threads list
 			threads.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
-		
+
+def get_extracted_values_time(elem):
+	return elem[2]
+
 def process_threads_timestamps_cmd(lines):
 	# What we should receive :
 	# line 0 			: threads_timestamps
 	# line 1 -> n-1 	: From xx to xx at xxxxxxx
 	# line n			: ch>
-	counter = 0
-	max_counter = 0
-	last_time = None
-	step = MINIMUM_THREAD_DURATION
 
 	# If the received text doesn't match what we expect, print it and quit
 	if(lines[1][:len('From ')] != 'From '):
@@ -158,10 +162,26 @@ def process_threads_timestamps_cmd(lines):
 			print(NEW_RECEIVED_LINE, line)
 		sys.exit(0)
 
+	extracted_values = []
 	for i in range(1,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
+
+		extracted_values.append((thread_out, thread_in, time))
+
+	# sorts the extracted values by time
+	extracted_values.sort(key=get_extracted_values_time)
+
+	counter = 0
+	max_counter = 0
+	last_time = None
+	step = MINIMUM_THREAD_DURATION
+
+	for i in range(len(extracted_values)):
+		thread_out 	= extracted_values[i][EXCTR_THREAD_OUT]
+		thread_in 	= extracted_values[i][EXCTR_THREAD_IN]
+		time 		= extracted_values[i][EXCTR_TIME]
 		# Counts how many time we enter and leave threads during the same timestamp
 		# to be able to show it on the timeline
 		if (time != last_time):
@@ -183,10 +203,15 @@ def process_threads_timestamps_cmd(lines):
 		if(len(thread['raw_values']) > 0):
 			if(thread['log']):
 
-				# Insert an IN time in case the first we encounter is an out time
-				# Happens with the main thread
-				if(thread['raw_values'][0][IN_OUT_TYPE] == 'out'):
-					thread['raw_values'].insert(0, (thread['raw_values'][0][VALUE],'in', 0))
+				if(thread['raw_values'][0][RAW_IN_OUT_TYPE] == 'out'):
+					if(thread['raw_values'][0][RAW_TIME] == 0):
+						# Insert an IN time in case the first we encounter is an out time and time is 0
+						# Happens with the main thread that has no IN time at boot 
+						# (no context switch to main since it's the first thread to begin)
+						thread['raw_values'].insert(0, (0,'in', 0))
+					else:
+						# Deletes the first value if it's an OUT time to not mess the timeline
+						thread['raw_values'].pop(0)
 
 				# Removes the last value if the number of value is odd
 				# because we need a pair of values
@@ -196,9 +221,9 @@ def process_threads_timestamps_cmd(lines):
 				# Adds the values by pair to the thread
 				for i in range(0, len(thread['raw_values']), 2):
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][SHIFT_NB] * step
-					begin = thread['raw_values'][i][VALUE] + shift
-					width = thread['raw_values'][i+1][VALUE] - thread['raw_values'][i][VALUE] - shift
+					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					begin = thread['raw_values'][i][RAW_TIME] + shift
+					width = thread['raw_values'][i+1][RAW_TIME] - thread['raw_values'][i][RAW_TIME] - shift
 					
 					if(width <  1):
 						thread['values'].append((begin, step))
@@ -211,9 +236,9 @@ def process_threads_timestamps_cmd(lines):
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][SHIFT_NB] * step
-					begin = thread['raw_values'][i][VALUE] + shift
-					if(thread['raw_values'][i][IN_OUT_TYPE] == 'in'):
+					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					begin = thread['raw_values'][i][RAW_TIME] + shift
+					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):
 						thread['values_in'].append((begin, step))
 					else:
 						thread['values_out'].append((begin, step))
@@ -253,7 +278,7 @@ process_threads_list_cmd(rcv_lines)
 
 # Sends command "threads_timestamps"
 send_command('threads_timestamps', True)
-rcv_lines = receive_text(False)
+rcv_lines = receive_text(True)
 nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
 
 sort_threads_by_prio()

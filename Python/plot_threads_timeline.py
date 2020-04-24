@@ -57,16 +57,17 @@ WINDOWS_DPI			= 90
 SUBPLOT_ADJ_RIGHT	= 0.97
 SUBPLOT_ADJ_TOP		= 0.96
 
-START_Y_TICKS = 10
-SPACING_Y_TICKS = 10
-RECT_HEIGHT = 10
-MINIMUM_THREAD_DURATION = 1
-ZOOM_LEVEL_THRESHOLD = 8
+START_Y_TICKS 				= 10
+SPACING_Y_TICKS 			= 10
+RECT_HEIGHT 				= 10
+MINIMUM_THREAD_DURATION 	= 1
+DIVISION_FACTOR_TICK_STEP 	= 3
+ZOOM_LEVEL_THRESHOLD 		= 8
 
 # for the extracted values fields
 EXCTR_THREAD_OUT 	= 0
-EXCTR_THREAD_IN	= 1
-EXCTR_TIME		= 2
+EXCTR_THREAD_IN		= 1
+EXCTR_TIME			= 2
 
 # for the raw_values field of a thread
 RAW_TIME 		= 0
@@ -176,7 +177,6 @@ def process_threads_timestamps_cmd(lines):
 	counter = 0
 	max_counter = 0
 	last_time = None
-	step = MINIMUM_THREAD_DURATION
 
 	for i in range(len(extracted_values)):
 		thread_out 	= extracted_values[i][EXCTR_THREAD_OUT]
@@ -196,11 +196,18 @@ def process_threads_timestamps_cmd(lines):
 		if(counter > max_counter):
 			max_counter = counter
 
+	# Size of a subdivision
+	step = MINIMUM_THREAD_DURATION
+
 	if(max_counter > 0):
 		step = 1/max_counter
 
+	# size of an IN or OUT tick (for incomplete data)
+	tick_step = step/DIVISION_FACTOR_TICK_STEP
+
 	for thread in threads:
 		if(len(thread['raw_values']) > 0):
+			# Thread logged by the MCU
 			if(thread['log']):
 
 				if(thread['raw_values'][0][RAW_IN_OUT_TYPE] == 'out'):
@@ -232,6 +239,8 @@ def process_threads_timestamps_cmd(lines):
 				# Indicates if we have timestamps to draw
 				if(len(thread['values']) > 0):
 					thread['have_values'] = True
+
+			# Thread not logged by the MCU
 			else:
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
@@ -239,9 +248,9 @@ def process_threads_timestamps_cmd(lines):
 					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):
-						thread['values_in'].append((begin, step))
+						thread['values_in'].append((begin, tick_step))
 					else:
-						thread['values_out'].append((begin, step))
+						thread['values_out'].append((begin - tick_step, tick_step))
 
 				# Indicates if we have timestamps to draw
 				if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):

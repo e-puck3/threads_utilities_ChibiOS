@@ -152,7 +152,6 @@ uint8_t _continue_to_fill(void){
 		if(_fill_remaining <= 0){
 			return false;
 		}else{
-			_fill_remaining--;
 			return true;
 		}
 	}else{
@@ -165,6 +164,9 @@ void _increments_fill_pos(void){
 	_fill_pos++;
 	if(_fill_pos >= THREADS_TIMESTAMPS_LOG_SIZE){
 		_fill_pos = 0;
+	}
+	if(_triggered){
+		_fill_remaining--;
 	}
 }
 #else

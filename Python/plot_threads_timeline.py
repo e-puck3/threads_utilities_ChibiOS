@@ -13,6 +13,7 @@
 
 import matplotlib.pyplot as plt
 import  matplotlib.ticker as tick
+from matplotlib.widgets import Button
 import numpy as np
 import random
 import serial
@@ -78,6 +79,7 @@ RAW_SHIFT_NB	= 2
 threads = []
 threads_name_list = []
 trigger_time = 0
+nb_subdivisions = 0
 
 def flush_shell():
 	# In case there was a communication problem
@@ -272,6 +274,10 @@ def process_threads_timestamps_cmd(lines):
 				if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):
 					thread['have_values'] = True
 
+	#we can't draw 0 subdivisions
+	if(max_counter == 0):
+		max_counter = 1
+
 	return max_counter
 
 def get_thread_prio(thread):
@@ -305,6 +311,77 @@ def on_xlims_change(axes):
 			trigger_bar.remove()
 			trigger_bar = None
 
+def read_new_timestamps(event):
+
+	global nb_subdivisions
+
+	flush_shell()
+
+	threads.clear()
+	threads_name_list.clear()
+
+	gnt.clear()
+
+	print('Getting new data')
+
+	# Sends command "threads_list"
+	send_command('threads_list', True)
+	rcv_lines = receive_text(True)
+	process_threads_list_cmd(rcv_lines)
+
+	# Sends command "threads_timestamps"
+	send_command('threads_timestamps', True)
+	rcv_lines = receive_text(False)
+	nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
+
+	sort_threads_by_prio()
+
+	for thread in threads:
+		if(thread['have_values']):
+			# Splits th names into multiple lines to spare space next to the graph
+			threads_name_list.append(thread['name'].replace(' ','\n') + '\nPrio:'+ str(thread['prio']))
+
+	# Setting Y-axis limits 
+	#gnt.set_ylim(0, 30) 
+
+	# # Setting X-axis limits 
+	# gnt.set_xlim(0, 3000) 
+
+	gnt.set_title('Threads timeline')
+
+	# Setting labels for x-axis and y-axis 
+	gnt.set_xlabel('milliseconds since boot')
+	gnt.set_ylabel('Threads')
+
+	# Setting ticks on y-axis 
+	gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, SPACING_Y_TICKS))
+	# Labelling tickes of y-axis 
+	gnt.set_yticklabels(threads_name_list, multialignment='center')
+
+	gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
+	gnt.grid(which='major', color='#000000', linestyle='-')
+	gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
+
+	# Setting graph attribute 
+	gnt.grid(b = True, which='both')
+	gnt.callbacks.connect('xlim_changed', on_xlims_change)
+
+	# Draws a rectangle every time a thread is running
+	row = 0
+	for thread in threads:
+		if(thread['have_values']):
+			y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
+			if(thread['log']):
+				# If de data are complete (aka this thread was logged), we draw the rectangles
+				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
+			else:
+				# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
+				# we draw the IN times in Green and the OUT in RED
+				gnt.broken_barh(thread['values_in'], (y_row, RECT_HEIGHT), facecolors='green')
+				gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
+			row += 1
+
+
 
 ###################              BEGINNING OF PROGRAMM               ###################
 
@@ -322,25 +399,6 @@ except:
 
 print('Connecting to port {}'.format(sys.argv[1]))
 
-flush_shell()
-
-# Sends command "threads_list"
-send_command('threads_list', True)
-rcv_lines = receive_text(True)
-process_threads_list_cmd(rcv_lines)
-
-# Sends command "threads_timestamps"
-send_command('threads_timestamps', True)
-rcv_lines = receive_text(True)
-nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
-
-sort_threads_by_prio()
-
-for thread in threads:
-	if(thread['have_values']):
-		# Splits th names into multiple lines to spare space next to the graph
-		threads_name_list.append(thread['name'].replace(' ','\n') + '\nPrio:'+ str(thread['prio']))
-
 # # Sends command "threads_stat"
 # send_command('threads_stat', False)
 # print('Stack usage of the running threads')
@@ -351,62 +409,26 @@ for thread in threads:
 # print('Computation time taken by the running threads')
 # receive_text(True)
 
-port.close()
-print('Port {} closed'.format(sys.argv[1]))
-
 # Declaring a figure "gnt" 
 # figsize is in inch
 fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DPI)
 
 plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
 
-# Setting Y-axis limits 
-#gnt.set_ylim(0, 30) 
+colorAx             		= 'lightgoldenrodyellow'
+readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
+readButton             		= Button(readAx, 'Get new data', color=colorAx, hovercolor='0.975')
+readButton.on_clicked(read_new_timestamps)
 
-# # Setting X-axis limits 
-# gnt.set_xlim(0, 3000) 
-
-plt.title('Threads timeline')
-
-# Setting labels for x-axis and y-axis 
-gnt.set_xlabel('milliseconds since boot')
-gnt.set_ylabel('Threads')
-
-# Setting ticks on y-axis 
-gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, SPACING_Y_TICKS))
-# Labelling tickes of y-axis 
-gnt.set_yticklabels(threads_name_list, multialignment='center')
-
-gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
-gnt.grid(which='major', color='#000000', linestyle='-')
-gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
-
-# Setting graph attribute 
-gnt.grid(b = True, which='both')
-
-# Colors used for the timeline
-colors=['green','blue','cyan','black']
-
-# Draws a rectangle every time a thread is running
-row = 0
-for thread in threads:
-	if(thread['have_values']):
-		y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
-		if(thread['log']):
-			# If de data are complete (aka this thread was logged), we draw the rectangles
-			gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
-		else:
-			# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
-			# we draw the IN times in Green and the OUT in RED
-			gnt.broken_barh(thread['values_in'], (y_row, RECT_HEIGHT), facecolors='green')
-			gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
-		row += 1
+read_new_timestamps(None)
 
 # We manually call this callback to draw correctly the first time the trigger bar
 on_xlims_change(gnt.axes)
 
-gnt.callbacks.connect('xlim_changed', on_xlims_change)
 plt.show()
+
+port.close()
+print('Port {} closed'.format(sys.argv[1]))
 
 # Be polite, say goodbye :-)
 print(GOODBYE)

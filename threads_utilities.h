@@ -51,6 +51,12 @@ void printListThreads(BaseSequentialStream *out);
  */	
 void printTimestampsThread(BaseSequentialStream *out);
 
+/**     
+ * @brief 			Sets the trigger of the timestamps functionality if this mode enabled
+ * 					in the makefile.
+ * 
+ */	
+void setTriggerTimestamps(void);
 /********************                CHCONF FUNCTION               ********************/
 
 /**
@@ -68,6 +74,12 @@ void fillThreadsTimestamps(void* ntp, void* otp);
  * 					Calls printListThreads()
  */	
 void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[]);
+
+/**     
+ * @brief 			Sets the trigger
+ * 					Calls setTriggerTimestamps()
+ */	
+void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print the number of threads running
  * 					Calls printTimestampsThread()
@@ -87,6 +99,7 @@ void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 #define THREADS_UTILITIES_SHELL_CMD					\
 	{"threads_list",cmd_threads_list},			\
 	{"threads_timestamps",cmd_threads_timestamps},		\
+	{"threads_timestamps_trigger", cmd_threads_timestamps_trigger}, \
 	{"threads_stat", cmd_threads_stat},				\
 	{"threads_uc", cmd_threads_uc},					\
 

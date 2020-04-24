@@ -16,9 +16,15 @@
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
-static uint32_t threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
+static uint16_t _fill_pos = 0;
 
-static uint64_t threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
+#ifdef TIMESTAMPS_TRIGGER_MODE
+static uint8_t _triggered = false;
+static uint32_t _trigger_time = 0;
+static int32_t _fill_remaining = 0;
+#endif /* TIMESTAMPS_TRIGGER_MODE */
 
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
@@ -130,7 +136,7 @@ void printListThreads(BaseSequentialStream *out){
 				n,
 				tp->p_prio,
 #ifdef ENABLE_THREADS_TIMESTAMPS
-				(threads_log_mask & (1 << n)) ? "Yes" : "No",
+				(_threads_log_mask & (1 << n)) ? "Yes" : "No",
 #else
 				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
@@ -138,6 +144,51 @@ void printListThreads(BaseSequentialStream *out){
 		tp = chRegNextThread(tp);
 		n++;
 	}
+}
+
+#ifdef TIMESTAMPS_TRIGGER_MODE
+uint8_t _continue_to_fill(void){
+	if(_triggered){
+		if(_fill_remaining <= 0){
+			return false;
+		}else{
+			_fill_remaining--;
+			return true;
+		}
+	}else{
+		return true;
+	}
+	
+}
+
+void _increments_fill_pos(void){
+	_fill_pos++;
+	if(_fill_pos >= THREADS_TIMESTAMPS_LOG_SIZE){
+		_fill_pos = 0;
+	}
+}
+#else
+void _continue_to_fill(void){
+	return (_fill_pos < THREADS_TIMESTAMPS_LOG_SIZE);
+}
+
+void _increments_fill_pos(void){
+	_fill_pos++;
+}
+#endif /* TIMESTAMPS_TRIGGER_MODE */
+
+void setTriggerTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
+#ifdef TIMESTAMPS_TRIGGER_MODE
+	if(!_triggered){
+		chSysLock();
+		_triggered = true;
+		_trigger_time = chVTGetSystemTimeX();
+		_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
+		chSysUnlock();
+	}
+#endif /* TIMESTAMPS_TRIGGER_MODE */
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void fillThreadsTimestamps(void* ntp, void* otp){
@@ -149,11 +200,9 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	static uint8_t counter_in = 0;
 	static uint8_t counter_out = 0;
 
-	static uint16_t fill_counter = 0;
-
 	time = chVTGetSystemTimeX();
 
-	if(fill_counter < THREADS_TIMESTAMPS_LOG_SIZE){
+	if(_continue_to_fill()){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
 		tp = ch.rlist.r_newer;
@@ -176,11 +225,11 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 			counter_out++;
 		}
 
-		if((threads_log_mask & (1 << counter_in)) || (threads_log_mask & (1 << counter_out))){
-			threads_log[fill_counter] = ((time << TIME_POS) & TIME_MASK) 
+		if((_threads_log_mask & (1 << counter_in)) || (_threads_log_mask & (1 << counter_out))){
+			_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
 										| ((counter_in << THREAD_IN_POS) & THREAD_IN_MASK);
-			fill_counter++;
+			_increments_fill_pos();
 		}
 	}
 #else
@@ -196,11 +245,11 @@ void printTimestampsThread(BaseSequentialStream *out){
 	static uint32_t time = 0;
 
 	for(uint32_t i = 0 ; i < THREADS_TIMESTAMPS_LOG_SIZE ; i++){
-		thread_in = (threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
-		thread_out = (threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS
-		;
-		if((threads_log_mask & (1 << thread_in)) || (threads_log_mask & (1 << thread_out))){
-			time = (threads_log[i] & TIME_MASK) >> TIME_POS;
+		thread_in = (_threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
+		thread_out = (_threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
+
+		if((_threads_log_mask & (1 << thread_in)) || (_threads_log_mask & (1 << thread_out))){
+			time = (_threads_log[i] & TIME_MASK) >> TIME_POS;
 			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 		}
 	}
@@ -224,6 +273,20 @@ void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[])
     
     printListThreads(chp);
 
+}
+
+void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+
+    if (argc > 0) {
+        chprintf(chp, "Usage: threads_timestamps_trigger\r\n");
+        return;
+    }
+
+    setTriggerTimestamps();
+    chprintf(chp, "Trigger set at %7d\r\n", _trigger_time);
 }
 
 void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[])

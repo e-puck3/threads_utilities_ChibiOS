@@ -16,14 +16,19 @@
 // we can store the in and out time of 32 threads max (1 bit per thread)
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
+
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
 static uint16_t _fill_pos = 0;
 
 #ifdef TIMESTAMPS_TRIGGER_MODE
+
+static uint8_t _full = false;
+
 static uint8_t _triggered = false;
 static uint32_t _trigger_time = 0;
 static int32_t _fill_remaining = 0;
+
 #endif /* TIMESTAMPS_TRIGGER_MODE */
 
 #endif /* ENABLE_THREADS_TIMESTAMPS */
@@ -164,6 +169,7 @@ void _increments_fill_pos(void){
 	_fill_pos++;
 	if(_fill_pos >= THREADS_TIMESTAMPS_LOG_SIZE){
 		_fill_pos = 0;
+		_full = true;
 	}
 	if(_triggered){
 		_fill_remaining--;
@@ -186,7 +192,13 @@ void setTriggerTimestamps(void){
 		chSysLock();
 		_triggered = true;
 		_trigger_time = chVTGetSystemTimeX();
-		_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
+		if(_full){
+			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
+		}else{
+			// Special case when we trigger before the logs are completely populated
+			// In this case we fill completely the remaining buffer and not only half of it
+			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE - _fill_pos;
+		}
 		chSysUnlock();
 	}
 #endif /* TIMESTAMPS_TRIGGER_MODE */

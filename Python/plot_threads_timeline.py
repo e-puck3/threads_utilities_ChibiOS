@@ -287,22 +287,12 @@ def sort_threads_by_prio():
 	threads.sort(key=get_thread_prio)
 
 trigger_bar = None
-# We enable the minor grid only when the zoom is close enough, 
-# otherwise the graph is really slow
-# We also redraw the trigger bar in a way that its visual width is constant
-def on_xlims_change(axes):
+
+def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
-	a=axes.get_xlim()
-	values_number = a[1]-a[0]
-
-	if(values_number > ZOOM_LEVEL_THRESHOLD):
-		gnt.xaxis.set_minor_locator(tick.NullLocator())
-	else:
-		gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
-
 	# Redraws the trigger only if we have one value
 	if(trigger_time > 0):
-		trigger_width = VISUAL_WIDTH_TRIGGER * values_number/(fig.get_figwidth()*WINDOWS_DPI)
+		trigger_width = VISUAL_WIDTH_TRIGGER * x_nb_values_printed/(fig.get_figwidth()*WINDOWS_DPI)
 		if(trigger_bar != None):
 			trigger_bar.remove()
 		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red')
@@ -311,14 +301,33 @@ def on_xlims_change(axes):
 			trigger_bar.remove()
 			trigger_bar = None
 
+# We enable the minor grid only when the zoom is close enough, 
+# otherwise the graph is really slow
+# We also redraw the trigger bar in a way that its visual width is constant
+def on_xlims_change(axes):
+	a=axes.get_xlim()
+	values_number = a[1]-a[0]
+
+	if(values_number > ZOOM_LEVEL_THRESHOLD):
+		gnt.xaxis.set_minor_locator(tick.NullLocator())
+	else:
+		gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
+
+	redraw_trigger_bar(values_number)
+
 def read_new_timestamps(event):
 
 	global nb_subdivisions
+	global trigger_bar
 
 	flush_shell()
 
 	threads.clear()
 	threads_name_list.clear()
+
+	if(trigger_bar != None):
+		trigger_bar.remove()
+		trigger_bar = None
 
 	gnt.clear()
 
@@ -364,7 +373,6 @@ def read_new_timestamps(event):
 
 	# Setting graph attribute 
 	gnt.grid(b = True, which='both')
-	gnt.callbacks.connect('xlim_changed', on_xlims_change)
 
 	# Draws a rectangle every time a thread is running
 	row = 0
@@ -381,7 +389,17 @@ def read_new_timestamps(event):
 				gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
 			row += 1
 
+	# Draws the first time the trigger bar
+	limits = gnt.axes.get_xlim()
+	redraw_trigger_bar(limits[1] - limits[0])
 
+	# set the callback for the next times (when we move or zoom)
+	gnt.callbacks.connect('xlim_changed', on_xlims_change)
+
+def timestamps_trigger(event):
+	# Sends command "threads_stat"
+	send_command('threads_timestamps_trigger', True)
+	receive_text(True)
 
 ###################              BEGINNING OF PROGRAMM               ###################
 
@@ -416,14 +434,15 @@ fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DP
 plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
 
 colorAx             		= 'lightgoldenrodyellow'
+triggerAx             		= plt.axes([0.7, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
+triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAx, hovercolor='0.975')
 readButton             		= Button(readAx, 'Get new data', color=colorAx, hovercolor='0.975')
+
+triggerButton.on_clicked(timestamps_trigger)
 readButton.on_clicked(read_new_timestamps)
 
 read_new_timestamps(None)
-
-# We manually call this callback to draw correctly the first time the trigger bar
-on_xlims_change(gnt.axes)
 
 plt.show()
 

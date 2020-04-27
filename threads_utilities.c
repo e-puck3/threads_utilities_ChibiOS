@@ -19,17 +19,13 @@
 
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
-static uint16_t _fill_pos = 0;
-
-#ifdef TIMESTAMPS_TRIGGER_MODE
-
+static uint32_t _fill_pos = 0;
+static uint8_t _pause = false;
 static uint8_t _full = false;
 
 static uint8_t _triggered = false;
 static uint32_t _trigger_time = 0;
 static int32_t _fill_remaining = 0;
-
-#endif /* TIMESTAMPS_TRIGGER_MODE */
 
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
@@ -151,7 +147,6 @@ void printListThreads(BaseSequentialStream *out){
 	}
 }
 
-#ifdef TIMESTAMPS_TRIGGER_MODE
 uint8_t _continue_to_fill(void){
 	if(_triggered){
 		if(_fill_remaining <= 0){
@@ -160,7 +155,11 @@ uint8_t _continue_to_fill(void){
 			return true;
 		}
 	}else{
-		return true;
+		if(_pause){
+			return false;
+		}else{
+			return true;
+		}
 	}
 	
 }
@@ -175,19 +174,9 @@ void _increments_fill_pos(void){
 		_fill_remaining--;
 	}
 }
-#else
-void _continue_to_fill(void){
-	return (_fill_pos < THREADS_TIMESTAMPS_LOG_SIZE);
-}
-
-void _increments_fill_pos(void){
-	_fill_pos++;
-}
-#endif /* TIMESTAMPS_TRIGGER_MODE */
 
 void setTriggerTimestamps(void){
 #ifdef ENABLE_THREADS_TIMESTAMPS
-#ifdef TIMESTAMPS_TRIGGER_MODE
 	if(!_triggered){
 		chSysLock();
 		_triggered = true;
@@ -201,7 +190,21 @@ void setTriggerTimestamps(void){
 		}
 		chSysUnlock();
 	}
-#endif /* TIMESTAMPS_TRIGGER_MODE */
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+}
+
+void resetTriggerTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
+	if(_triggered){
+		chSysLock();
+		_triggered = false;
+		_trigger_time = 0;
+		_fill_remaining = 0;
+		// Also resets the logs because otherwise we polute with old values from the trigger
+		_fill_pos = 0;
+		_full = false;
+		chSysUnlock();
+	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
@@ -258,13 +261,23 @@ void printTimestampsThread(BaseSequentialStream *out){
 	static uint8_t thread_out = 0;
 	static uint32_t time = 0;
 
-#ifdef TIMESTAMPS_TRIGGER_MODE
+	static uint32_t limit = 0;
+
+	// temporarily pauses the filling of the logs
+	_pause = true;
+
 	if(_triggered){
 		chprintf(out, "Triggered at %7d\r\n", _trigger_time);
 	}
-#endif /* TIMESTAMPS_TRIGGER_MODE */
+
+	// Special case if the logs aren't full of data
+	if(!_full){
+		limit = _fill_pos;
+	}else{
+		limit = THREADS_TIMESTAMPS_LOG_SIZE;
+	}
 	
-	for(uint32_t i = 0 ; i < THREADS_TIMESTAMPS_LOG_SIZE ; i++){
+	for(uint32_t i = 0 ; i < limit ; i++){
 		thread_in = (_threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
 		thread_out = (_threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
 
@@ -273,6 +286,8 @@ void printTimestampsThread(BaseSequentialStream *out){
 			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 		}
 	}
+
+	_pause = false;
 #else
 	chprintf(out, "The thread timestamps functionnality is disabled\r\n");
 	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = yes in your makefile \r\n");
@@ -307,6 +322,20 @@ void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *a
 
     setTriggerTimestamps();
     chprintf(chp, "Trigger set at %7d\r\n", _trigger_time);
+}
+
+void cmd_threads_timestamps_run(BaseSequentialStream *chp, int argc, char *argv[])
+{   
+    (void)argc;
+    (void)argv;
+
+    if (argc > 0) {
+        chprintf(chp, "Usage: threads_timestamps_run\r\n");
+        return;
+    }
+
+    resetTriggerTimestamps();
+    chprintf(chp, "Run mode\r\n");
 }
 
 void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[])

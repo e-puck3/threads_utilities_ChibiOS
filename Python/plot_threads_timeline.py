@@ -67,9 +67,9 @@ DIVISION_FACTOR_TICK_STEP 	= 3
 ZOOM_LEVEL_THRESHOLD 		= 8
 
 # for the extracted values fields
-EXCTR_THREAD_OUT 	= 0
-EXCTR_THREAD_IN		= 1
-EXCTR_TIME			= 2
+EXTR_THREAD_OUT 	= 0
+EXTR_THREAD_IN		= 1
+EXTR_TIME			= 2
 
 # for the raw_values field of a thread
 RAW_TIME 		= 0
@@ -152,7 +152,7 @@ def process_threads_list_cmd(lines):
 			threads.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
 
 def get_extracted_values_time(elem):
-	return elem[2]
+	return elem[EXTR_TIME]
 
 def process_threads_timestamps_cmd(lines):
 	# What we should receive (one more line if the trigger mode is enabled) :
@@ -197,9 +197,9 @@ def process_threads_timestamps_cmd(lines):
 
 	# Processes the values by writing them to the related threads
 	for i in range(len(extracted_values)):
-		thread_out 	= extracted_values[i][EXCTR_THREAD_OUT]
-		thread_in 	= extracted_values[i][EXCTR_THREAD_IN]
-		time 		= extracted_values[i][EXCTR_TIME]
+		thread_out 	= extracted_values[i][EXTR_THREAD_OUT]
+		thread_in 	= extracted_values[i][EXTR_THREAD_IN]
+		time 		= extracted_values[i][EXTR_TIME]
 		# Counts how many time we enter and leave threads during the same timestamp
 		# to be able to show it on the timeline
 		if (time != last_time):
@@ -432,11 +432,13 @@ fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DP
 
 plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
 
-colorAx             		= 'lightgoldenrodyellow'
-triggerAx             		= plt.axes([0.7, 0.025, 0.1, 0.04])
+colorAxBlue             	= 'lightblue'
+colorAxBlueHovering        	= 'lightblue'
+colorAxGreen            	= 'lightgreen'
+triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
-triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAx, hovercolor='0.975')
-readButton             		= Button(readAx, 'Get new data', color=colorAx, hovercolor='0.975')
+triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
+readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
 
 triggerButton.on_clicked(timestamps_trigger)
 readButton.on_clicked(read_new_timestamps)

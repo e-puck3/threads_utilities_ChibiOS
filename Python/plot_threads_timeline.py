@@ -214,11 +214,10 @@ def process_threads_timestamps_cmd(lines):
 		if(counter > max_counter):
 			max_counter = counter
 
-	# Size of a subdivision
-	step = MINIMUM_THREAD_DURATION
-
-	if(max_counter > 0):
-		step = 1/max_counter
+	# Since the count of elements begins at 0 for computations reasons, we 
+	# need t oadd one for the real number of elements used to draw the elements
+	max_counter += 1
+	step = 1/max_counter
 
 	# size of an IN or OUT tick (for incomplete data)
 	tick_step = step/DIVISION_FACTOR_TICK_STEP

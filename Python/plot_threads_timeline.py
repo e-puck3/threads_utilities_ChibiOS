@@ -78,7 +78,7 @@ RAW_SHIFT_NB	= 2
 
 threads = []
 threads_name_list = []
-trigger_time = 0
+trigger_time = None
 nb_subdivisions = 0
 
 def flush_shell():
@@ -170,7 +170,7 @@ def process_threads_timestamps_cmd(lines):
 		first_data_line = 2
 	# No trigger
 	else:
-		trigger_time = 0
+		trigger_time = None
 
 	# If the received text doesn't match what we expect, print it and quit
 	if(lines[first_data_line][:len('From ')] != 'From '):
@@ -290,7 +290,7 @@ trigger_bar = None
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
 	# Redraws the trigger only if we have one value
-	if(trigger_time > 0):
+	if(trigger_time != None):
 		trigger_width = VISUAL_WIDTH_TRIGGER * x_nb_values_printed/(fig.get_figwidth()*WINDOWS_DPI)
 		if(trigger_bar != None):
 			trigger_bar.remove()
@@ -400,6 +400,11 @@ def timestamps_trigger(event):
 	send_command('threads_timestamps_trigger', True)
 	receive_text(True)
 
+def timestamps_run(event):
+	# Sends command "threads_stat"
+	send_command('threads_timestamps_run', True)
+	receive_text(True)
+
 ###################              BEGINNING OF PROGRAMM               ###################
 
 # Tests if the serial port as been given as argument in the terminal
@@ -436,11 +441,14 @@ colorAxBlue             	= 'lightblue'
 colorAxBlueHovering        	= 'lightblue'
 colorAxGreen            	= 'lightgreen'
 triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
+runAx             			= plt.axes([0.7, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
 triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
+runButton	             	= Button(runAx, 'Run mode', color=colorAxBlue, hovercolor='0.7')
 readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
 
 triggerButton.on_clicked(timestamps_trigger)
+runButton.on_clicked(timestamps_run)
 readButton.on_clicked(read_new_timestamps)
 
 read_new_timestamps(None)

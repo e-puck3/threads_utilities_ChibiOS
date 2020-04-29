@@ -20,8 +20,12 @@
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
 
-static thread_t* threads_removed_infos[64] = {NULL};
-static uint8_t threads_removed[64] = {0};
+#define THREADS_REMOVE_LEN	64
+static thread_t* _threads_removed_infos[THREADS_REMOVE_LEN] = {NULL};
+static uint8_t _threads_removed[THREADS_REMOVE_LEN] = {0};
+static uint8_t _threads_removed_pos = 0;
+static uint8_t _next_thread_removed_to_delete = 0;
+static uint8_t _threads_removed_count = 0;
 
 static uint32_t _fill_pos = 0;
 static uint8_t _pause = false;
@@ -151,20 +155,19 @@ void printListThreads(BaseSequentialStream *out){
 	}
 
 	chprintf(out,"Deleted threads: \r\n");
-	n = 1;
-	while(n < 64){
-		if(threads_removed[n]){
-			chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
-					threads_removed[n],
-					threads_removed_infos[n]->p_prio,
+
+	n = _next_thread_removed_to_delete;
+	for(uint8_t i = 0 ; i < _threads_removed_count ; i++){
+		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
+				_threads_removed[n],
+				_threads_removed_infos[n]->p_prio,
 #ifdef ENABLE_THREADS_TIMESTAMPS
-					(_threads_log_mask & (1 << n)) ? "Yes" : "No",
+				(_threads_log_mask & (1 << n)) ? "Yes" : "No",
 #else
-					"No",
+				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
-					threads_removed_infos[n]->p_name == NULL ? "NONAME" : threads_removed_infos[n]->p_name); 
-		}
-		n++;
+				_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
+		n = (n+1) % THREADS_REMOVE_LEN;
 	}
 }
 
@@ -224,6 +227,11 @@ void resetTriggerTimestamps(void){
 		// Also resets the logs because otherwise we polute with old values from the trigger
 		_fill_pos = 0;
 		_full = false;
+		// Also resets the history of deleted threads
+		_threads_removed_pos = 0;
+		_next_thread_removed_to_delete = 0;
+		_threads_removed_count = 0;
+
 		chSysUnlock();
 	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */
@@ -234,7 +242,6 @@ void removeThread(void* otp){
 	static thread_t *tp = 0;
 	static thread_t *out = NULL;
 	static uint8_t counter_out = 0;
-	static uint8_t counter_removed = 0;
 	static uint32_t time = 0;
 
 	time = chVTGetSystemTimeX();
@@ -249,18 +256,20 @@ void removeThread(void* otp){
 		tp = tp->p_newer;
 		counter_out++;
 	}
-	_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
-							| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
-							| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
-	_increments_fill_pos();
 
-	counter_removed = 1;
-	while(threads_removed[counter_removed] != 0){
-		counter_removed++;
+	if(_threads_removed_count < THREADS_REMOVE_LEN){
+		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
+								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
+								| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
+		_increments_fill_pos();
+
+		_threads_removed[_threads_removed_pos] = counter_out;
+		_threads_removed_infos[_threads_removed_pos] = out; 
+
+		_threads_removed_pos = (_threads_removed_pos+1) % THREADS_REMOVE_LEN;
+		_threads_removed_count++;
 	}
 
-	threads_removed[counter_removed] = counter_out;
-	threads_removed_infos[counter_removed] = out; 
 }
 
 void fillThreadsTimestamps(void* ntp, void* otp){
@@ -273,7 +282,6 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	static uint8_t counter_out = 0;
 	static uint8_t found_in = false;
 	static uint8_t found_out = false;
-	static uint8_t deleted_thd = 0;
 
 	time = chVTGetSystemTimeX();
 
@@ -310,14 +318,15 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 			counter_out = 0;
 		}
 
-		deleted_thd = (_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
-		if(deleted_thd == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
-			uint8_t counter_removed = 0;
-			while(threads_removed[counter_removed] != deleted_thd){
-				counter_removed++;
+		// Removes an removed thread from the removed threads list if we find the timestamp indicating this remove
+		// means we did a complete loop on the buffer so we have no more data of this thread
+		// Only possible if the buffer have already been completely filled, otherwise the 0s would trigger the condition
+		if(_full){
+			if(((_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS) == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
+
+				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % THREADS_REMOVE_LEN;
+				_threads_removed_count--;
 			}
-			threads_removed[counter_removed] = 0;
-			threads_removed_infos[counter_removed] = NULL; 
 		}
 
 		if((_threads_log_mask & (1 << counter_in)) || (_threads_log_mask & (1 << counter_out))){

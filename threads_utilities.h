@@ -82,6 +82,7 @@ void resetTriggerTimestamps(void);
  * @param device 	Pointer to the output
  */	
 void fillThreadsTimestamps(void* ntp, void* otp);
+void removeThread(void* otp);
 
 /********************                SHELL FUNCTIONS               ********************/
 

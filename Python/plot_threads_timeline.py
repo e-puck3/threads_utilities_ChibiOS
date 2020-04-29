@@ -77,6 +77,7 @@ RAW_IN_OUT_TYPE	= 1
 RAW_SHIFT_NB	= 2
 
 threads = []
+deleted_threads = []
 threads_name_list = []
 trigger_time = None
 nb_subdivisions = 0
@@ -125,13 +126,26 @@ def receive_text(echo):
 
 	return text_lines
 
+def append_thread(thread_list, name, nb, prio, log, deleted):
+	if(deleted):
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'deleted_line_nb': None})
+	else:
+		if(log == 'Yes'):	
+			# Adds a logged thread to the threads list
+			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
+		else:
+			# Adds a non logged thread to the threads list
+			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
+
 def process_threads_list_cmd(lines):
 	# What we should receive :
 	# line 0 			: threads_list
 	# line 1 -> n-1 	: Thread number xx : Prio = xxx, Log = xxx, Name = str
 	# line n			: ch>
+
+	deleted = False
 	
-		# If the received text doesn't match what we expect, print it and quit
+	# If the received text doesn't match what we expect, print it and quit
 	if(lines[1][:len('Thread number')] != 'Thread number'):
 		print('Bad answer received, see below :')
 		for line in lines:
@@ -139,20 +153,18 @@ def process_threads_list_cmd(lines):
 		sys.exit(0)
 
 	for i in range(1,len(lines)-1):
+		if(not deleted and lines[i] == 'Deleted threads: '):
+			deleted = True
+			continue
 		nb 		= int(lines[i][len('Thread number '):len('Thread number ')+2])
 		prio 	= int(lines[i][len('Thread number xx : Prio = '):len('Thread number xx : Prio = ')+3])
 		log 	= lines[i][len('Thread number xx : Prio = xxx, Log = '):len('Thread number xx : Prio = xxx, Log = ')+3]
 		name 	= lines[i][len('Thread number xx : Prio = xxx, Log = xxx, Name = '):]
-		# Different way of storing the timestamps if logged or not
-		if(log == 'Yes'):	
-			# Adds a logged thread to the threads list
-			threads.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
-		else:
-			# Adds a non logged thread to the threads list
-			threads.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
 
-def get_extracted_values_time(elem):
-	return elem[EXTR_TIME]
+		if(deleted):
+			append_thread(deleted_threads, name, nb, prio, log, True)
+		else:
+			append_thread(threads, name, nb, prio, log, False)
 
 def process_threads_timestamps_cmd(lines):
 	# What we should receive (one more line if the trigger mode is enabled) :
@@ -181,15 +193,46 @@ def process_threads_timestamps_cmd(lines):
 
 	# We store the valus in an array in order to sort them before processing them
 	extracted_values = []
+	# We increment this counter each time we see a thread has been deleted
+	# This way we know from which line we need to correct the values for each deleted thread
+	nb_of_del_thread = 0
 	for i in range(first_data_line,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
 
+		# If the IN and OUT are equal, it means this thread has been deleted
+		# -> Note it to correct the next timestamp and don't store this line
+		if(thread_in == thread_out):
+			nb_of_del_thread += 1
+			deleted_threads[nb_of_del_thread-1]['deleted_line_nb'] = i;
+			continue
+
+		for del_thread in deleted_threads:
+			if((del_thread['deleted_line_nb'] != None) and (thread_out >= del_thread['nb'])):
+				thread_out += 1
+			if((del_thread['deleted_line_nb'] != None) and (thread_in >= del_thread['nb'])):
+				thread_in += 1
+
+		# If thread_out is 0, means we come from a deleted thread 
+		# -> recover it's number. Done after the index correction to not correct this number
+		if(thread_out == 0):
+			thread_out = deleted_threads[nb_of_del_thread-1]['nb']
+
+
 		extracted_values.append((thread_out, thread_in, time))
 
-	# sorts the extracted values by time
-	extracted_values.sort(key=get_extracted_values_time)
+	for t in extracted_values:
+		print(t)
+
+	# Inserts the deleted thread at the correct position
+	# to have every index correct
+	for del_thread in deleted_threads:
+		if(del_thread['deleted_line_nb'] != None):
+			threads.insert(del_thread['nb']-1,del_thread)
+
+	for t in threads:
+		print(t)
 
 	counter = 0
 	max_counter = 0
@@ -322,6 +365,7 @@ def read_new_timestamps(event):
 	flush_shell()
 
 	threads.clear()
+	deleted_threads.clear()
 	threads_name_list.clear()
 
 	if(trigger_bar != None):

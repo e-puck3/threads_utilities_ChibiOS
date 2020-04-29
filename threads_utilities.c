@@ -19,6 +19,10 @@
 
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
+
+static thread_t* threads_removed_infos[64] = {NULL};
+static uint8_t threads_removed[64] = {0};
+
 static uint32_t _fill_pos = 0;
 static uint8_t _pause = false;
 static uint8_t _full = false;
@@ -145,6 +149,23 @@ void printListThreads(BaseSequentialStream *out){
 		tp = chRegNextThread(tp);
 		n++;
 	}
+
+	chprintf(out,"Deleted threads: \r\n");
+	n = 1;
+	while(n < 64){
+		if(threads_removed[n]){
+			chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
+					threads_removed[n],
+					threads_removed_infos[n]->p_prio,
+#ifdef ENABLE_THREADS_TIMESTAMPS
+					(_threads_log_mask & (1 << n)) ? "Yes" : "No",
+#else
+					"No",
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+					threads_removed_infos[n]->p_name == NULL ? "NONAME" : threads_removed_infos[n]->p_name); 
+		}
+		n++;
+	}
 }
 
 uint8_t _continue_to_fill(void){
@@ -208,6 +229,40 @@ void resetTriggerTimestamps(void){
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
+void removeThread(void* otp){
+
+	static thread_t *tp = 0;
+	static thread_t *out = NULL;
+	static uint8_t counter_out = 0;
+	static uint8_t counter_removed = 0;
+	static uint32_t time = 0;
+
+	time = chVTGetSystemTimeX();
+
+	tp = ch.rlist.r_newer;
+	out = (thread_t*) otp;
+	counter_out = 1;
+	while(tp != (thread_t *)&ch.rlist){
+		if(tp == out){
+			break;
+		}
+		tp = tp->p_newer;
+		counter_out++;
+	}
+	_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
+							| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
+							| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
+	_increments_fill_pos();
+
+	counter_removed = 1;
+	while(threads_removed[counter_removed] != 0){
+		counter_removed++;
+	}
+
+	threads_removed[counter_removed] = counter_out;
+	threads_removed_infos[counter_removed] = out; 
+}
+
 void fillThreadsTimestamps(void* ntp, void* otp){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	static uint32_t time = 0;
@@ -216,6 +271,9 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	static thread_t *out = NULL;
 	static uint8_t counter_in = 0;
 	static uint8_t counter_out = 0;
+	static uint8_t found_in = false;
+	static uint8_t found_out = false;
+	static uint8_t deleted_thd = 0;
 
 	time = chVTGetSystemTimeX();
 
@@ -224,22 +282,42 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 		out = (thread_t*) otp;
 		tp = ch.rlist.r_newer;
 		counter_in = 1;
+		found_in = false;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == in){
+				found_in = true;
 				break;
 			}
 			tp = tp->p_newer;
 			counter_in++;
 		}
+		if(!found_in){
+			counter_in = 0;
+		}
 
 		tp = ch.rlist.r_newer;
 		counter_out = 1;
+		found_out = false;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == out){
+				found_out = true;
 				break;
 			}
 			tp = tp->p_newer;
 			counter_out++;
+		}
+		if(!found_out){
+			counter_out = 0;
+		}
+
+		deleted_thd = (_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
+		if(deleted_thd == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
+			uint8_t counter_removed = 0;
+			while(threads_removed[counter_removed] != deleted_thd){
+				counter_removed++;
+			}
+			threads_removed[counter_removed] = 0;
+			threads_removed_infos[counter_removed] = NULL; 
 		}
 
 		if((_threads_log_mask & (1 << counter_in)) || (_threads_log_mask & (1 << counter_out))){
@@ -260,7 +338,7 @@ void printTimestampsThread(BaseSequentialStream *out){
 	static uint8_t thread_in = 0;
 	static uint8_t thread_out = 0;
 	static uint32_t time = 0;
-
+	static uint32_t pos = 0;
 	static uint32_t limit = 0;
 
 	// temporarily pauses the filling of the logs
@@ -273,18 +351,22 @@ void printTimestampsThread(BaseSequentialStream *out){
 	// Special case if the logs aren't full of data
 	if(!_full){
 		limit = _fill_pos;
+		pos = 0;
 	}else{
+		pos = _fill_pos;
 		limit = THREADS_TIMESTAMPS_LOG_SIZE;
 	}
 	
 	for(uint32_t i = 0 ; i < limit ; i++){
-		thread_in = (_threads_log[i] & THREAD_IN_MASK) >> THREAD_IN_POS;
-		thread_out = (_threads_log[i] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
+		thread_in = (_threads_log[pos] & THREAD_IN_MASK) >> THREAD_IN_POS;
+		thread_out = (_threads_log[pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
 
 		if((_threads_log_mask & (1 << thread_in)) || (_threads_log_mask & (1 << thread_out))){
-			time = (_threads_log[i] & TIME_MASK) >> TIME_POS;
+			time = (_threads_log[pos] & TIME_MASK) >> TIME_POS;
 			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 		}
+
+		pos = (pos+1) % THREADS_TIMESTAMPS_LOG_SIZE;
 	}
 
 	_pause = false;

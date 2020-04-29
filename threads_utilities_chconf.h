@@ -14,6 +14,7 @@
 extern "C" {
 #endif /* __cplusplus */
 void fillThreadsTimestamps(void* in, void* out);
+void removeThread(void* otp);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

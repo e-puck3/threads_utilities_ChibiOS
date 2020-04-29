@@ -132,10 +132,10 @@ def append_thread(thread_list, name, nb, prio, log, deleted):
 	else:
 		if(log == 'Yes'):	
 			# Adds a logged thread to the threads list
-			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
+			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'deleted_line_nb': None})
 		else:
 			# Adds a non logged thread to the threads list
-			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
+			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': [], 'deleted_line_nb': None})
 
 def process_threads_list_cmd(lines):
 	# What we should receive :
@@ -218,6 +218,9 @@ def process_threads_timestamps_cmd(lines):
 		# -> recover it's number. Done after the index correction to not correct this number
 		if(thread_out == 0):
 			thread_out = deleted_threads[nb_of_del_thread-1]['nb']
+			# Special case when the number of the deleted thread was being corrected in the previous lines
+			if(thread_out != extracted_values[-1][EXTR_THREAD_IN]):
+				thread_out =  extracted_values[-1][EXTR_THREAD_IN]
 
 
 		extracted_values.append((thread_out, thread_in, time))
@@ -229,7 +232,19 @@ def process_threads_timestamps_cmd(lines):
 	# to have every index correct
 	for del_thread in deleted_threads:
 		if(del_thread['deleted_line_nb'] != None):
-			threads.insert(del_thread['nb']-1,del_thread)
+			while(True):
+				if(del_thread['nb']-1 >= len(threads)):
+					threads.append(del_thread)
+					break
+				else:
+					if(del_thread['nb'] == threads[del_thread['nb']-1]['nb']):
+						del_thread['nb'] += 1
+					else:
+						threads.insert(del_thread['nb']-1,del_thread)
+						break
+			
+			
+					
 
 	for t in threads:
 		print(t)

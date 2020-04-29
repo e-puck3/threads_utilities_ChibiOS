@@ -166,6 +166,9 @@ def process_threads_list_cmd(lines):
 		else:
 			append_thread(threads, name, nb, prio, log, False)
 
+def get_test(elem):
+	return ((elem['nb'], elem['deleted_line_nb']))
+
 def process_threads_timestamps_cmd(lines):
 	# What we should receive (one more line if the trigger mode is enabled) :
 	# line 0 			: threads_timestamps
@@ -208,11 +211,15 @@ def process_threads_timestamps_cmd(lines):
 			deleted_threads[nb_of_del_thread-1]['deleted_line_nb'] = i;
 			continue
 
+		temp_out = thread_out
+		temp_in = thread_in
+		
 		for del_thread in deleted_threads:
-			if((del_thread['deleted_line_nb'] != None) and (thread_out >= del_thread['nb'])):
-				thread_out += 1
-			if((del_thread['deleted_line_nb'] != None) and (thread_in >= del_thread['nb'])):
-				thread_in += 1
+			if(del_thread['deleted_line_nb'] != None):
+				if((thread_out >= del_thread['nb']) and (temp_out >= del_thread['nb'])):
+					thread_out += 1
+				if((thread_in >= del_thread['nb'])  and (temp_in >= del_thread['nb'])):
+					thread_in += 1
 
 		# If thread_out is 0, means we come from a deleted thread 
 		# -> recover it's number. Done after the index correction to not correct this number
@@ -225,23 +232,52 @@ def process_threads_timestamps_cmd(lines):
 
 		extracted_values.append((thread_out, thread_in, time))
 
-	for t in extracted_values:
+	# for t in extracted_values:
+	# 	print(t)
+
+	for t in deleted_threads:
 		print(t)
+
+	deleted_threads.sort(key=get_test)
+
+	print('sorted')
+	# for t in deleted_threads:
+	# 	print(t)
+
+	threads.extend(deleted_threads) 
 
 	# Inserts the deleted thread at the correct position
 	# to have every index correct
-	for del_thread in deleted_threads:
-		if(del_thread['deleted_line_nb'] != None):
-			while(True):
-				if(del_thread['nb']-1 >= len(threads)):
-					threads.append(del_thread)
-					break
-				else:
-					if(del_thread['nb'] == threads[del_thread['nb']-1]['nb']):
-						del_thread['nb'] += 1
-					else:
-						threads.insert(del_thread['nb']-1,del_thread)
-						break
+	# for del_thread in deleted_threads:
+	# 	if(del_thread['deleted_line_nb'] != None):
+	# 		while(True):
+	# 			if(del_thread['nb']-1 >= len(threads)):
+	# 				threads.append(del_thread)
+	# 				print('append', del_thread['name'])
+	# 				break
+	# 			else:
+	# 				if(del_thread['nb'] == threads[del_thread['nb']-1]['nb']):
+	# 					del_thread['nb'] += 1
+	# 				else:
+	# 					threads.insert(del_thread['nb']-1,del_thread)
+	# 					print('insert', del_thread['name'], 'at', del_thread['nb']-1)
+	# 					break
+
+	# for del_thread in deleted_threads:
+	# 	inserted = False
+	# 	if(del_thread['deleted_line_nb'] != None):
+	# 		# for i in range(len(threads)):
+	# 		# 	if((del_thread['nb']) < threads[i]['nb']):
+	# 		# 		threads.insert(i, del_thread)
+	# 		# 		inserted = True
+	# 		# 		break
+	# 		# 	elif((del_thread['nb']) == threads[i]['nb']):
+	# 		# 		del_thread['nb'] += 1
+	# 		# if(not inserted):
+	# 		# 	threads.append(del_thread)
+	# 		threads.append(del_thread)
+
+
 			
 			
 					

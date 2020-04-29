@@ -436,8 +436,11 @@ def read_new_timestamps(event):
 	limits = gnt.axes.get_xlim()
 	redraw_trigger_bar(limits[1] - limits[0])
 
-	# set the callback for the next times (when we move or zoom)
+	# Set the callback for the next times (when we move or zoom)
 	gnt.callbacks.connect('xlim_changed', on_xlims_change)
+
+	# Updates the toolbar to remove the history on zoom/diplacement and set the new home
+	fig.canvas.toolbar.update()
 
 def timestamps_trigger(event):
 	# Sends command "threads_stat"

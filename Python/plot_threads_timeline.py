@@ -61,6 +61,7 @@ SUBPLOT_ADJ_TOP		= 0.96
 START_Y_TICKS 				= 10
 SPACING_Y_TICKS 			= 10
 RECT_HEIGHT 				= 10
+RECT_HEIGHT_EXIT 			= 15
 MINIMUM_THREAD_DURATION 	= 1
 VISUAL_WIDTH_TRIGGER		= 5 # no unit
 DIVISION_FACTOR_TICK_STEP 	= 3
@@ -130,10 +131,10 @@ def append_thread(thread_list, name, nb, prio, log):
 
 	if(log == 'Yes'):	
 		# Adds a logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'exit_value': []})
 	else:
 		# Adds a non logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'in_values': [],'out_values': [], 'exit_value': []})
 
 
 def process_threads_list_cmd(lines):
@@ -170,7 +171,6 @@ def process_threads_list_cmd(lines):
 	# and the number they have was the thread number at the time they existed
 	# -> By inserting them to the threads list in the reverse order at their old position, 
 	# 	 we recover the original threads creation order
-
 	while(len(deleted_threads)):
 		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
 
@@ -209,6 +209,7 @@ def process_threads_timestamps_cmd(lines):
 		time 		= int(lines[i][len('From xx to xx at '):])
 
 		# A thread has been deleted
+		# We simulate the same to be coherent with the numbering of the timestamps
 		if(thread_out == thread_in):
 			deleted_threads.append(threads.pop(thread_out-1))
 		else:
@@ -222,7 +223,7 @@ def process_threads_timestamps_cmd(lines):
 			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
 			# -> Add the OUT timestamp to the last deleted thread
 			if(thread_out == 0):
-				deleted_threads[-1]['raw_values'].append((time, 'out', counter))
+				deleted_threads[-1]['raw_values'].append((time, 'exit', counter))
 			else:
 				threads[thread_out-1]['raw_values'].append((time, 'out', counter))
 
@@ -234,6 +235,8 @@ def process_threads_timestamps_cmd(lines):
 			if(counter > max_counter):
 				max_counter = counter
 
+	# Now that every timestamps are with their respective threads, we put every threads together
+	# again for the rest of the code
 	while(len(deleted_threads)):
 		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
 
@@ -273,9 +276,13 @@ def process_threads_timestamps_cmd(lines):
 					width = thread['raw_values'][i+1][RAW_TIME] - thread['raw_values'][i][RAW_TIME] - shift
 					
 					if(width <  1):
-						thread['values'].append((begin, step))
-					else:
-						thread['values'].append((begin, width))
+						width = step
+
+					thread['values'].append((begin, width))
+
+					# Also draw something when we exit a thread
+					if(thread['raw_values'][i+1][RAW_IN_OUT_TYPE] == 'exit'):
+						thread['exit_value'].append((begin + width - tick_step, tick_step))
 				# Indicates if we have timestamps to draw
 				if(len(thread['values']) > 0):
 					thread['have_values'] = True
@@ -288,12 +295,18 @@ def process_threads_timestamps_cmd(lines):
 					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):
-						thread['values_in'].append((begin, tick_step))
-					else:
-						thread['values_out'].append((begin - tick_step, tick_step))
+						thread['in_values'].append((begin, tick_step))
+
+					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'out'):
+						thread['out_values'].append((begin - tick_step, tick_step))
+
+					# For incomplete data, exiting a thread is rawn the same as an OUT time
+					# except for the colour
+					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'exit'):
+						thread['exit_value'].append((begin - tick_step, tick_step))
 
 				# Indicates if we have timestamps to draw
-				if((len(thread['values_in']) > 0) or (len(thread['values_out']) > 0)):
+				if((len(thread['in_values']) > 0) or (len(thread['out_values']) > 0)):
 					thread['have_values'] = True
 
 	#we can't draw 0 subdivisions
@@ -366,7 +379,7 @@ def read_new_timestamps(event):
 	rcv_lines = receive_text(False)
 	nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
 
-	# sort_threads_by_prio()
+	sort_threads_by_prio()
 
 	for thread in threads:
 		if(thread['have_values']):
@@ -408,8 +421,10 @@ def read_new_timestamps(event):
 			else:
 				# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
 				# we draw the IN times in Green and the OUT in RED
-				gnt.broken_barh(thread['values_in'], (y_row, RECT_HEIGHT), facecolors='green')
-				gnt.broken_barh(thread['values_out'], (y_row, RECT_HEIGHT), facecolors='red')
+				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green')
+				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red')
+
+			gnt.broken_barh(thread['exit_value'], (y_row + (RECT_HEIGHT - RECT_HEIGHT_EXIT)/2 , RECT_HEIGHT_EXIT), facecolors='red')
 			row += 1
 
 	# Draws the first time the trigger bar

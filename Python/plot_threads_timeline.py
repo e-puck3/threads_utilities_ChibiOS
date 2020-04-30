@@ -126,16 +126,15 @@ def receive_text(echo):
 
 	return text_lines
 
-def append_thread(thread_list, name, nb, prio, log, deleted):
-	if(deleted):
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'deleted_line_nb': None})
+def append_thread(thread_list, name, nb, prio, log):
+
+	if(log == 'Yes'):	
+		# Adds a logged thread to the threads list
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': []})
 	else:
-		if(log == 'Yes'):	
-			# Adds a logged thread to the threads list
-			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'deleted_line_nb': None})
-		else:
-			# Adds a non logged thread to the threads list
-			thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': [], 'deleted_line_nb': None})
+		# Adds a non logged thread to the threads list
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'values_in': [],'values_out': []})
+
 
 def process_threads_list_cmd(lines):
 	# What we should receive :
@@ -162,12 +161,19 @@ def process_threads_list_cmd(lines):
 		name 	= lines[i][len('Thread number xx : Prio = xxx, Log = xxx, Name = '):]
 
 		if(deleted):
-			append_thread(deleted_threads, name, nb, prio, log, True)
+			append_thread(deleted_threads, name, nb, prio, log)
 		else:
-			append_thread(threads, name, nb, prio, log, False)
+			append_thread(threads, name, nb, prio, log)
 
-def get_test(elem):
-	return ((elem['nb'], elem['deleted_line_nb']))
+
+	# The deleted threads are given in the order they have been deleted
+	# and the number they have was the thread number at the time they existed
+	# -> By inserting them to the threads list in the reverse order at their old position, 
+	# 	 we recover the original threads creation order
+
+	while(len(deleted_threads)):
+		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
+
 
 def process_threads_timestamps_cmd(lines):
 	# What we should receive (one more line if the trigger mode is enabled) :
@@ -194,119 +200,42 @@ def process_threads_timestamps_cmd(lines):
 			print(NEW_RECEIVED_LINE, line)
 		sys.exit(0)
 
-	# We store the valus in an array in order to sort them before processing them
-	extracted_values = []
-	# We increment this counter each time we see a thread has been deleted
-	# This way we know from which line we need to correct the values for each deleted thread
-	nb_of_del_thread = 0
+	counter = 0
+	max_counter = 0
+	last_time = None
 	for i in range(first_data_line,len(lines)-1):
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
 		time 		= int(lines[i][len('From xx to xx at '):])
 
-		# If the IN and OUT are equal, it means this thread has been deleted
-		# -> Note it to correct the next timestamp and don't store this line
-		if(thread_in == thread_out):
-			nb_of_del_thread += 1
-			deleted_threads[nb_of_del_thread-1]['deleted_line_nb'] = i;
-			continue
-
-		temp_out = thread_out
-		temp_in = thread_in
-		
-		for del_thread in deleted_threads:
-			if(del_thread['deleted_line_nb'] != None):
-				if((thread_out >= del_thread['nb']) and (temp_out >= del_thread['nb'])):
-					thread_out += 1
-				if((thread_in >= del_thread['nb'])  and (temp_in >= del_thread['nb'])):
-					thread_in += 1
-
-		# If thread_out is 0, means we come from a deleted thread 
-		# -> recover it's number. Done after the index correction to not correct this number
-		if(thread_out == 0):
-			thread_out = deleted_threads[nb_of_del_thread-1]['nb']
-			# Special case when the number of the deleted thread was being corrected in the previous lines
-			if(thread_out != extracted_values[-1][EXTR_THREAD_IN]):
-				thread_out =  extracted_values[-1][EXTR_THREAD_IN]
-
-
-		extracted_values.append((thread_out, thread_in, time))
-
-	# for t in extracted_values:
-	# 	print(t)
-
-	for t in deleted_threads:
-		print(t)
-
-	deleted_threads.sort(key=get_test)
-
-	print('sorted')
-	# for t in deleted_threads:
-	# 	print(t)
-
-	threads.extend(deleted_threads) 
-
-	# Inserts the deleted thread at the correct position
-	# to have every index correct
-	# for del_thread in deleted_threads:
-	# 	if(del_thread['deleted_line_nb'] != None):
-	# 		while(True):
-	# 			if(del_thread['nb']-1 >= len(threads)):
-	# 				threads.append(del_thread)
-	# 				print('append', del_thread['name'])
-	# 				break
-	# 			else:
-	# 				if(del_thread['nb'] == threads[del_thread['nb']-1]['nb']):
-	# 					del_thread['nb'] += 1
-	# 				else:
-	# 					threads.insert(del_thread['nb']-1,del_thread)
-	# 					print('insert', del_thread['name'], 'at', del_thread['nb']-1)
-	# 					break
-
-	# for del_thread in deleted_threads:
-	# 	inserted = False
-	# 	if(del_thread['deleted_line_nb'] != None):
-	# 		# for i in range(len(threads)):
-	# 		# 	if((del_thread['nb']) < threads[i]['nb']):
-	# 		# 		threads.insert(i, del_thread)
-	# 		# 		inserted = True
-	# 		# 		break
-	# 		# 	elif((del_thread['nb']) == threads[i]['nb']):
-	# 		# 		del_thread['nb'] += 1
-	# 		# if(not inserted):
-	# 		# 	threads.append(del_thread)
-	# 		threads.append(del_thread)
-
-
-			
-			
-					
-
-	for t in threads:
-		print(t)
-
-	counter = 0
-	max_counter = 0
-	last_time = None
-
-	# Processes the values by writing them to the related threads
-	for i in range(len(extracted_values)):
-		thread_out 	= extracted_values[i][EXTR_THREAD_OUT]
-		thread_in 	= extracted_values[i][EXTR_THREAD_IN]
-		time 		= extracted_values[i][EXTR_TIME]
-		# Counts how many time we enter and leave threads during the same timestamp
-		# to be able to show it on the timeline
-		if (time != last_time):
-			counter = 0
+		# A thread has been deleted
+		if(thread_out == thread_in):
+			deleted_threads.append(threads.pop(thread_out-1))
 		else:
-			counter += 1 
-		threads[thread_out-1]['raw_values'].append((time, 'out', counter))
-		threads[thread_in-1]['raw_values'].append((time, 'in', counter))
-		last_time = time
-		# We need to know the maximum of IN and OUT times during the same timetamp to be able to do
-		# correctly the subdivisions on the timeline
-		if(counter > max_counter):
-			max_counter = counter
+			# Counts how many time we enter and leave threads during the same timestamp
+			# to be able to show it on the timeline
+			if (time != last_time):
+				counter = 0
+			else:
+				counter += 1 
+
+			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
+			# -> Add the OUT timestamp to the last deleted thread
+			if(thread_out == 0):
+				deleted_threads[-1]['raw_values'].append((time, 'out', counter))
+			else:
+				threads[thread_out-1]['raw_values'].append((time, 'out', counter))
+
+			threads[thread_in-1]['raw_values'].append((time, 'in', counter))
+			
+			last_time = time
+			# We need to know the maximum of IN and OUT times during the same timetamp to be able to do
+			# correctly the subdivisions on the timeline
+			if(counter > max_counter):
+				max_counter = counter
+
+	while(len(deleted_threads)):
+		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
 
 	# Since the count of elements begins at 0 for computations reasons, we 
 	# need t oadd one for the real number of elements used to draw the elements
@@ -437,7 +366,7 @@ def read_new_timestamps(event):
 	rcv_lines = receive_text(False)
 	nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
 
-	sort_threads_by_prio()
+	# sort_threads_by_prio()
 
 	for thread in threads:
 		if(thread['have_values']):

@@ -38,7 +38,7 @@ static int32_t _fill_remaining = 0;
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
 // max 63 Threads (1-63), 0 means nothing
-// bit 31 to bit 12 = time
+// bit 31 to bit 12 = time (20bits -> 17 mins max)
 // bit 11 to bit 6 	= out thread number (1-63)	
 // bit 5  to bit 0 	= in thread number (1-63)
 #define THREAD_IN_POS		0
@@ -205,12 +205,13 @@ void setTriggerTimestamps(void){
 		chSysLock();
 		_triggered = true;
 		_trigger_time = chVTGetSystemTimeX();
-		if(_full){
-			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
-		}else{
-			// Special case when we trigger before the logs are completely populated
+		if(!_full && _fill_pos <= THREADS_TIMESTAMPS_LOG_SIZE/2){
+			// Special case when we trigger before the logs are completely populated and we
+			// have less that half of hte buffer full
 			// In this case we fill completely the remaining buffer and not only half of it
 			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE - _fill_pos;
+		}else{
+			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
 		}
 		chSysUnlock();
 	}

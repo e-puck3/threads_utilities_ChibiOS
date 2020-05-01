@@ -404,6 +404,7 @@ def read_new_timestamps(event):
 	gnt.set_yticklabels(threads_name_list, multialignment='center')
 
 	gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
+	gnt.xaxis.get_major_formatter().set_useOffset(False)
 	gnt.grid(which='major', color='#000000', linestyle='-')
 	gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
 

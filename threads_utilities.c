@@ -281,6 +281,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	static thread_t *tp = 0;
 	static thread_t *in = NULL;
 	static thread_t *out = NULL;
+	static uint8_t counter = 0;
 	static uint8_t counter_in = 0;
 	static uint8_t counter_out = 0;
 	static uint8_t found_in = false;
@@ -292,36 +293,28 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
 		tp = ch.rlist.r_newer;
-		counter_in = 1;
+		counter = 1;
+		counter_in = 0;
+		counter_out = 0;
 		found_in = false;
+		found_out = false;
 		while(tp != (thread_t *)&ch.rlist){
 			if(tp == in){
 				found_in = true;
-				break;
+				counter_in = counter;
 			}
-			tp = tp->p_newer;
-			counter_in++;
-		}
-		if(!found_in){
-			counter_in = 0;
-		}
-
-		tp = ch.rlist.r_newer;
-		counter_out = 1;
-		found_out = false;
-		while(tp != (thread_t *)&ch.rlist){
 			if(tp == out){
 				found_out = true;
-				break;
+				counter_out = counter;
 			}
 			tp = tp->p_newer;
-			counter_out++;
-		}
-		if(!found_out){
-			counter_out = 0;
+			counter++;
+			if(found_in && found_out){
+				break;
+			}
 		}
 
-		// Removes an removed thread from the removed threads list if we find the timestamp indicating this remove
+		// Removes a removed thread from the removed threads list if we find the timestamp indicating this remove
 		// means we did a complete loop on the buffer so we have no more data of this thread
 		// Only possible if the buffer have already been completely filled, otherwise the 0s would trigger the condition
 		if(_full){

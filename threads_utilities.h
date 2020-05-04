@@ -60,6 +60,35 @@ void printListThreads(BaseSequentialStream *out);
 void printTimestampsThread(BaseSequentialStream *out);
 
 /**     
+ * @brief 			The thread invocking this functions will be logged in the timestamps functionnality
+ * 
+ */	
+void logThisThreadTimestamps(void);
+
+/**     
+ * @brief 			The thread invocking this functions will no longer be logged in the timestamps functionnality
+ * 					If it was logged before, it will appear as a non logged thread in the python script (the representation is different)
+ * 
+ */	
+void dontLogThisThreadTimestamps(void);
+
+/**     
+ * @brief 			All the following threads to be created will be logged in the timestamps functionnalit
+ * 					Can be called before chSysInit() to log the main and Idle threads for example
+ * 					Works in pair with dontLogNextCreatedThreadsTimestamps() to log some threads but not all
+ * 
+ */	
+void logNextCreatedThreadsTimestamps(void);
+
+/**     
+ * @brief 			All the following threads to be created won't be logged in the timestamps functionnality
+ * 					Can be called before chSysInit() to not log the main and Idle threads for example
+ * 					Works in pair with logNextCreatedThreadsTimestamps() to log some threads but not all
+ * 
+ */	
+void dontLogNextCreatedThreadsTimestamps(void);
+
+/**     
  * @brief 			Sets the trigger of the timestamps functionality. This means the filling is stopped
  * 					such that the timestamps are equally around the trigger.
  * 

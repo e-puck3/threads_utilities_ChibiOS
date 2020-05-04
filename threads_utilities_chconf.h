@@ -7,12 +7,13 @@
 
 #ifdef TIMESTAMPS_INCLUDE
 
-#define THREAD_NB(x) (1 << x)
-
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+uint8_t getLogSetting(void);
+
 void fillThreadsTimestamps(void* in, void* out);
 void removeThread(void* otp);
 #ifdef __cplusplus

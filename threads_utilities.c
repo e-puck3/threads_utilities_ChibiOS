@@ -13,16 +13,21 @@
 
 /********************              INTERNAL VARIABLES              ********************/
 
-// we can store the in and out time of 32 threads max (1 bit per thread)
+// we can store the in and out time of 63 threads max
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
 
-static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
-static uint64_t _threads_log_mask = TIMESTAMPS_THREADS_TO_LOG;
+// define by the mask we apply for the timestamps. We have 6 bits for the thread number
+// and the thread 0 reserved 
+#define MAX_HANDLED_THREADS	64
+#define HANDLED_THREADS_LEN (MAX_HANDLED_THREADS - 1)
 
-#define THREADS_REMOVE_LEN	64
-static thread_t* _threads_removed_infos[THREADS_REMOVE_LEN] = {NULL};
-static uint8_t _threads_removed[THREADS_REMOVE_LEN] = {0};
+static uint8_t logSetting = false;
+
+static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+
+static thread_t* _threads_removed_infos[HANDLED_THREADS_LEN] = {NULL};
+static uint8_t _threads_removed[HANDLED_THREADS_LEN] = {0};
 static uint8_t _threads_removed_pos = 0;
 static uint8_t _next_thread_removed_to_delete = 0;
 static uint8_t _threads_removed_count = 0;
@@ -145,7 +150,7 @@ void printListThreads(BaseSequentialStream *out){
 				n,
 				tp->p_prio,
 #ifdef ENABLE_THREADS_TIMESTAMPS
-				(_threads_log_mask & (1 << n)) ? "Yes" : "No",
+				tp->log_this_thread ? "Yes" : "No",
 #else
 				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
@@ -162,12 +167,12 @@ void printListThreads(BaseSequentialStream *out){
 				_threads_removed[n],
 				_threads_removed_infos[n]->p_prio,
 #ifdef ENABLE_THREADS_TIMESTAMPS
-				(_threads_log_mask & (1 << n)) ? "Yes" : "No",
+				_threads_removed_infos[n]->log_this_thread ? "Yes" : "No",
 #else
 				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 				_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
-		n = (n+1) % THREADS_REMOVE_LEN;
+		n = (n+1) % HANDLED_THREADS_LEN;
 	}
 }
 
@@ -241,6 +246,28 @@ void resetTriggerTimestamps(void){
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
+uint8_t getLogSetting(void){
+	return logSetting;
+}
+
+void logThisThreadTimestamps(void){
+	thread_t* tp = chThdGetSelfX();
+	tp->log_this_thread = true;
+}
+
+void dontLogThisThreadTimestamps(void){
+	thread_t* tp = chThdGetSelfX();
+	tp->log_this_thread = false;
+}
+
+void logNextCreatedThreadsTimestamps(void){
+	logSetting = true;
+}
+
+void dontLogNextCreatedThreadsTimestamps(void){
+	logSetting = false;
+}
+
 void removeThread(void* otp){
 
 	static thread_t *tp = 0;
@@ -261,7 +288,7 @@ void removeThread(void* otp){
 		counter_out++;
 	}
 
-	if(_threads_removed_count < THREADS_REMOVE_LEN){
+	if(_threads_removed_count < HANDLED_THREADS_LEN){
 		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
 								| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
@@ -270,7 +297,7 @@ void removeThread(void* otp){
 		_threads_removed[_threads_removed_pos] = counter_out;
 		_threads_removed_infos[_threads_removed_pos] = out; 
 
-		_threads_removed_pos = (_threads_removed_pos+1) % THREADS_REMOVE_LEN;
+		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
 		_threads_removed_count++;
 	}
 
@@ -321,12 +348,12 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 		if(_full){
 			if(((_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS) == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
 
-				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % THREADS_REMOVE_LEN;
+				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % HANDLED_THREADS_LEN;
 				_threads_removed_count--;
 			}
 		}
 
-		if((_threads_log_mask & (1 << counter_in)) || (_threads_log_mask & (1 << counter_out))){
+		if(in->log_this_thread || out->log_this_thread){
 			_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
 										| ((counter_in << THREAD_IN_POS) & THREAD_IN_MASK);
@@ -366,11 +393,9 @@ void printTimestampsThread(BaseSequentialStream *out){
 	for(uint32_t i = 0 ; i < limit ; i++){
 		thread_in = (_threads_log[pos] & THREAD_IN_MASK) >> THREAD_IN_POS;
 		thread_out = (_threads_log[pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
-
-		if((_threads_log_mask & (1 << thread_in)) || (_threads_log_mask & (1 << thread_out))){
-			time = (_threads_log[pos] & TIME_MASK) >> TIME_POS;
-			chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
-		}
+		time = (_threads_log[pos] & TIME_MASK) >> TIME_POS;
+		
+		chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 
 		pos = (pos+1) % THREADS_TIMESTAMPS_LOG_SIZE;
 	}

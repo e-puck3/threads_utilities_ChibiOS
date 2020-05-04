@@ -40,6 +40,11 @@ static uint8_t _triggered = false;
 static uint32_t _trigger_time = 0;
 static int32_t _fill_remaining = 0;
 
+#else
+static char no_timestamps_error_message[] = {
+	"The thread timestamps functionality is disabled\r\n"
+	"Please define USE_THREADS_TIMESTAMPS = true in your makefile \r\n"
+};
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
 // max 63 Threads (1-63), 0 means nothing
@@ -55,7 +60,7 @@ static int32_t _fill_remaining = 0;
 
 /********************               PRIVATE FUNCTIONS              ********************/
 
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
 /**     
  * @brief 			Tells whether we can add a timestamp to the logs buffer or not
  */	
@@ -73,7 +78,6 @@ uint8_t _continue_to_fill(void){
 			return true;
 		}
 	}
-	
 }
 
 /**     
@@ -89,6 +93,8 @@ void _increments_fill_pos(void){
 		_fill_remaining--;
 	}
 }
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+
 
 /********************                CHCONF FUNCTION               ********************/
 
@@ -100,7 +106,7 @@ void _increments_fill_pos(void){
  * @param device 	Pointer to the exiting thread
  */	
 void removeThread(void* otp){
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	static thread_t *tp = 0;
 	static thread_t *out = NULL;
 	static uint8_t counter_out = 0;
@@ -131,7 +137,9 @@ void removeThread(void* otp){
 		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
 		_threads_removed_count++;
 	}
-
+#else
+	(void) otp;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 /**
@@ -309,6 +317,7 @@ void printListThreads(BaseSequentialStream *out){
 		n++;
 	}
 
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	chprintf(out,"Deleted threads: \r\n");
 
 	n = _next_thread_removed_to_delete;
@@ -316,14 +325,11 @@ void printListThreads(BaseSequentialStream *out){
 		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
 				_threads_removed[n],
 				_threads_removed_infos[n]->p_prio,
-#ifdef ENABLE_THREADS_TIMESTAMPS
 				_threads_removed_infos[n]->log_this_thread ? "Yes" : "No",
-#else
-				"No",
-#endif /* ENABLE_THREADS_TIMESTAMPS */
 				_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
 		n = (n+1) % HANDLED_THREADS_LEN;
 	}
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void setTriggerTimestamps(void){
@@ -369,25 +375,37 @@ void resetTriggerTimestamps(void){
 }
 
 uint8_t getLogSetting(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	return logSetting;
+#else
+	return false;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void logThisThreadTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	thread_t* tp = chThdGetSelfX();
 	tp->log_this_thread = true;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void dontLogThisThreadTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	thread_t* tp = chThdGetSelfX();
 	tp->log_this_thread = false;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void logNextCreatedThreadsTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	logSetting = true;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void dontLogNextCreatedThreadsTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	logSetting = false;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void printTimestampsThread(BaseSequentialStream *out){
@@ -456,9 +474,12 @@ void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *a
         chprintf(chp, "Usage: threads_timestamps_trigger\r\n");
         return;
     }
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
     setTriggerTimestamps();
     chprintf(chp, "Trigger set at %7d\r\n", _trigger_time);
+#else
+	chprintf(chp, "%s", no_timestamps_error_message);
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void cmd_threads_timestamps_run(BaseSequentialStream *chp, int argc, char *argv[])
@@ -470,9 +491,12 @@ void cmd_threads_timestamps_run(BaseSequentialStream *chp, int argc, char *argv[
         chprintf(chp, "Usage: threads_timestamps_run\r\n");
         return;
     }
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
     resetTriggerTimestamps();
     chprintf(chp, "Run mode\r\n");
+#else
+	chprintf(chp, "%s", no_timestamps_error_message);
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[])
@@ -484,8 +508,11 @@ void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[])
         chprintf(chp, "Usage: threads_timestamps\r\n");
         return;
     }
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
     printTimestampsThread(chp);
+#else
+	chprintf(chp, "%s", no_timestamps_error_message);
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[])

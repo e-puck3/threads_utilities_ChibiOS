@@ -6,15 +6,17 @@ THDUSRC = $(THDULIB)/threads_utilities.c
 THDUINC = $(THDULIB)
 
 # Whether to use or not the threads timestamps feature
-USE_THREADS_TIMESTAMPS ?= no
+USE_THREADS_TIMESTAMPS ?= false
 
-# If enabled, it will use 8bytes * THREADS_TIMESTAMPS_LOG_SIZE of memory
-# Each element corresponds to a system tick
+# If enabled, it will use 4bytes * THREADS_TIMESTAMPS_LOG_SIZE of memory
 THREADS_TIMESTAMPS_LOG_SIZE ?= 3000
+# 
+THREADS_TIMESTAMPS_DEFAULT_LOG ?= false
 
-ifeq ($(USE_THREADS_TIMESTAMPS),yes)
+ifeq ($(USE_THREADS_TIMESTAMPS), true)
 	ALLDEFS += -DENABLE_THREADS_TIMESTAMPS
 	ALLDEFS += -DTHREADS_TIMESTAMPS_LOG_SIZE=$(THREADS_TIMESTAMPS_LOG_SIZE)
+	ALLDEFS += -DTHREADS_TIMESTAMPS_DEFAULT_LOG=$(THREADS_TIMESTAMPS_DEFAULT_LOG)
 endif
 
 ALLCSRC += $(THDUSRC)

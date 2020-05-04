@@ -22,7 +22,7 @@
 #define MAX_HANDLED_THREADS	64
 #define HANDLED_THREADS_LEN (MAX_HANDLED_THREADS - 1)
 
-static uint8_t logSetting = false;
+static uint8_t logSetting = THREADS_TIMESTAMPS_DEFAULT_LOG;
 
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 
@@ -43,7 +43,7 @@ static int32_t _fill_remaining = 0;
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
 // max 63 Threads (1-63), 0 means nothing
-// bit 31 to bit 12 = time (20bits -> 17 mins max)
+// bit 31 to bit 12 = time (20bits -> 17 minutes max)
 // bit 11 to bit 6 	= out thread number (1-63)	
 // bit 5  to bit 0 	= in thread number (1-63)
 #define THREAD_IN_POS		0
@@ -52,6 +52,156 @@ static int32_t _fill_remaining = 0;
 #define THREAD_OUT_MASK		(0x3F << THREAD_OUT_POS)
 #define TIME_POS			12
 #define TIME_MASK			(0xFFFFF << TIME_POS)
+
+/********************               PRIVATE FUNCTIONS              ********************/
+
+
+/**     
+ * @brief 			Tells whether we can add a timestamp to the logs buffer or not
+ */	
+uint8_t _continue_to_fill(void){
+	if(_triggered){
+		if(_fill_remaining <= 0){
+			return false;
+		}else{
+			return true;
+		}
+	}else{
+		if(_pause){
+			return false;
+		}else{
+			return true;
+		}
+	}
+	
+}
+
+/**     
+ * @brief 			Updates the log variables when an element has been added to the logs buffer
+ */	
+void _increments_fill_pos(void){
+	_fill_pos++;
+	if(_fill_pos >= THREADS_TIMESTAMPS_LOG_SIZE){
+		_fill_pos = 0;
+		_full = true;
+	}
+	if(_triggered){
+		_fill_remaining--;
+	}
+}
+
+/********************                CHCONF FUNCTION               ********************/
+
+/**
+ * @brief 			Saves the exiting thread into the removed thread list to keep trace of the 
+ * 					deleted threads for the timestamps functionality.
+ * 					To be called by the CH_CFG_THREAD_EXIT_HOOK in chconf.h
+ * 
+ * @param device 	Pointer to the exiting thread
+ */	
+void removeThread(void* otp){
+
+	static thread_t *tp = 0;
+	static thread_t *out = NULL;
+	static uint8_t counter_out = 0;
+	static uint32_t time = 0;
+
+	time = chVTGetSystemTimeX();
+
+	tp = ch.rlist.r_newer;
+	out = (thread_t*) otp;
+	counter_out = 1;
+	while(tp != (thread_t *)&ch.rlist){
+		if(tp == out){
+			break;
+		}
+		tp = tp->p_newer;
+		counter_out++;
+	}
+
+	if(_threads_removed_count < HANDLED_THREADS_LEN){
+		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
+								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
+								| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
+		_increments_fill_pos();
+
+		_threads_removed[_threads_removed_pos] = counter_out;
+		_threads_removed_infos[_threads_removed_pos] = out; 
+
+		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
+		_threads_removed_count++;
+	}
+
+}
+
+/**
+ * @brief 			Saves the IN and OUT times of each thread to log while the buffers aren't full.
+ * 					To be called by the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
+ * 
+ * @param device 	Pointer to the output
+ */	
+void fillThreadsTimestamps(void* ntp, void* otp){
+#ifdef ENABLE_THREADS_TIMESTAMPS
+	static uint32_t time = 0;
+	static thread_t *tp = 0;
+	static thread_t *in = NULL;
+	static thread_t *out = NULL;
+	static uint8_t counter = 0;
+	static uint8_t counter_in = 0;
+	static uint8_t counter_out = 0;
+	static uint8_t found_in = false;
+	static uint8_t found_out = false;
+
+	time = chVTGetSystemTimeX();
+
+	if(_continue_to_fill()){
+		in = (thread_t*) ntp;
+		out = (thread_t*) otp;
+		tp = ch.rlist.r_newer;
+		counter = 1;
+		counter_in = 0;
+		counter_out = 0;
+		found_in = false;
+		found_out = false;
+		while(tp != (thread_t *)&ch.rlist){
+			if(tp == in){
+				found_in = true;
+				counter_in = counter;
+			}
+			if(tp == out){
+				found_out = true;
+				counter_out = counter;
+			}
+			tp = tp->p_newer;
+			counter++;
+			if(found_in && found_out){
+				break;
+			}
+		}
+
+		// Removes a removed thread from the removed threads list if we find the timestamp indicating this remove
+		// means we did a complete loop on the buffer so we have no more data of this thread
+		// Only possible if the buffer have already been completely filled, otherwise the 0s would trigger the condition
+		if(_full){
+			if(((_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS) == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
+
+				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % HANDLED_THREADS_LEN;
+				_threads_removed_count--;
+			}
+		}
+
+		if(in->log_this_thread || out->log_this_thread){
+			_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
+										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
+										| ((counter_in << THREAD_IN_POS) & THREAD_IN_MASK);
+			_increments_fill_pos();
+		}
+	}
+#else
+	(void) ntp;
+	(void) otp;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+}
 
 /********************                PUBLIC FUNCTIONS              ********************/
 
@@ -176,34 +326,6 @@ void printListThreads(BaseSequentialStream *out){
 	}
 }
 
-uint8_t _continue_to_fill(void){
-	if(_triggered){
-		if(_fill_remaining <= 0){
-			return false;
-		}else{
-			return true;
-		}
-	}else{
-		if(_pause){
-			return false;
-		}else{
-			return true;
-		}
-	}
-	
-}
-
-void _increments_fill_pos(void){
-	_fill_pos++;
-	if(_fill_pos >= THREADS_TIMESTAMPS_LOG_SIZE){
-		_fill_pos = 0;
-		_full = true;
-	}
-	if(_triggered){
-		_fill_remaining--;
-	}
-}
-
 void setTriggerTimestamps(void){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	if(!_triggered){
@@ -268,104 +390,6 @@ void dontLogNextCreatedThreadsTimestamps(void){
 	logSetting = false;
 }
 
-void removeThread(void* otp){
-
-	static thread_t *tp = 0;
-	static thread_t *out = NULL;
-	static uint8_t counter_out = 0;
-	static uint32_t time = 0;
-
-	time = chVTGetSystemTimeX();
-
-	tp = ch.rlist.r_newer;
-	out = (thread_t*) otp;
-	counter_out = 1;
-	while(tp != (thread_t *)&ch.rlist){
-		if(tp == out){
-			break;
-		}
-		tp = tp->p_newer;
-		counter_out++;
-	}
-
-	if(_threads_removed_count < HANDLED_THREADS_LEN){
-		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
-								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
-								| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
-		_increments_fill_pos();
-
-		_threads_removed[_threads_removed_pos] = counter_out;
-		_threads_removed_infos[_threads_removed_pos] = out; 
-
-		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
-		_threads_removed_count++;
-	}
-
-}
-
-void fillThreadsTimestamps(void* ntp, void* otp){
-#ifdef ENABLE_THREADS_TIMESTAMPS
-	static uint32_t time = 0;
-	static thread_t *tp = 0;
-	static thread_t *in = NULL;
-	static thread_t *out = NULL;
-	static uint8_t counter = 0;
-	static uint8_t counter_in = 0;
-	static uint8_t counter_out = 0;
-	static uint8_t found_in = false;
-	static uint8_t found_out = false;
-
-	time = chVTGetSystemTimeX();
-
-	if(_continue_to_fill()){
-		in = (thread_t*) ntp;
-		out = (thread_t*) otp;
-		tp = ch.rlist.r_newer;
-		counter = 1;
-		counter_in = 0;
-		counter_out = 0;
-		found_in = false;
-		found_out = false;
-		while(tp != (thread_t *)&ch.rlist){
-			if(tp == in){
-				found_in = true;
-				counter_in = counter;
-			}
-			if(tp == out){
-				found_out = true;
-				counter_out = counter;
-			}
-			tp = tp->p_newer;
-			counter++;
-			if(found_in && found_out){
-				break;
-			}
-		}
-
-		// Removes a removed thread from the removed threads list if we find the timestamp indicating this remove
-		// means we did a complete loop on the buffer so we have no more data of this thread
-		// Only possible if the buffer have already been completely filled, otherwise the 0s would trigger the condition
-		if(_full){
-			if(((_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS) == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
-
-				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % HANDLED_THREADS_LEN;
-				_threads_removed_count--;
-			}
-		}
-
-		if(in->log_this_thread || out->log_this_thread){
-			_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
-										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
-										| ((counter_in << THREAD_IN_POS) & THREAD_IN_MASK);
-			_increments_fill_pos();
-		}
-	}
-#else
-	(void) ntp;
-	(void) otp;
-#endif /* ENABLE_THREADS_TIMESTAMPS */
-}
-
 void printTimestampsThread(BaseSequentialStream *out){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	static uint8_t thread_in = 0;
@@ -394,7 +418,7 @@ void printTimestampsThread(BaseSequentialStream *out){
 		thread_in = (_threads_log[pos] & THREAD_IN_MASK) >> THREAD_IN_POS;
 		thread_out = (_threads_log[pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS;
 		time = (_threads_log[pos] & TIME_MASK) >> TIME_POS;
-		
+
 		chprintf(out, "From %2d to %2d at %7d\r\n", thread_out, thread_in, time);
 
 		pos = (pos+1) % THREADS_TIMESTAMPS_LOG_SIZE;
@@ -402,8 +426,8 @@ void printTimestampsThread(BaseSequentialStream *out){
 
 	_pause = false;
 #else
-	chprintf(out, "The thread timestamps functionnality is disabled\r\n");
-	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = yes in your makefile \r\n");
+	chprintf(out, "The thread timestamps functionality is disabled\r\n");
+	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = true in your makefile \r\n");
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 

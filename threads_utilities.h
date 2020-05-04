@@ -60,20 +60,20 @@ void printListThreads(BaseSequentialStream *out);
 void printTimestampsThread(BaseSequentialStream *out);
 
 /**     
- * @brief 			The thread invocking this functions will be logged in the timestamps functionnality
+ * @brief 			The thread invocking this functions will be logged in the timestamps functionality
  * 
  */	
 void logThisThreadTimestamps(void);
 
 /**     
- * @brief 			The thread invocking this functions will no longer be logged in the timestamps functionnality
+ * @brief 			The thread invocking this functions will no longer be logged in the timestamps functionality
  * 					If it was logged before, it will appear as a non logged thread in the python script (the representation is different)
  * 
  */	
 void dontLogThisThreadTimestamps(void);
 
 /**     
- * @brief 			All the following threads to be created will be logged in the timestamps functionnalit
+ * @brief 			All the following threads to be created will be logged in the timestamps functionnality
  * 					Can be called before chSysInit() to log the main and Idle threads for example
  * 					Works in pair with dontLogNextCreatedThreadsTimestamps() to log some threads but not all
  * 
@@ -81,7 +81,7 @@ void dontLogThisThreadTimestamps(void);
 void logNextCreatedThreadsTimestamps(void);
 
 /**     
- * @brief 			All the following threads to be created won't be logged in the timestamps functionnality
+ * @brief 			All the following threads to be created won't be logged in the timestamps functionality
  * 					Can be called before chSysInit() to not log the main and Idle threads for example
  * 					Works in pair with logNextCreatedThreadsTimestamps() to log some threads but not all
  * 
@@ -101,17 +101,6 @@ void setTriggerTimestamps(void);
  * 
  */	
 void resetTriggerTimestamps(void);
-
-/********************                CHCONF FUNCTION               ********************/
-
-/**
- * @brief 			Saves the IN and OUT times of each thread to log while the buffers aren't full.
- * 					To be called by the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
- * 
- * @param device 	Pointer to the output
- */	
-void fillThreadsTimestamps(void* ntp, void* otp);
-void removeThread(void* otp);
 
 /********************                SHELL FUNCTIONS               ********************/
 

@@ -1,9 +1,20 @@
 
-/**
- * Declaration of fillThreadsTimestamps()
- * To be included with TIMESTAMPS_INCLUDE defined
- * before CH_CFG_CONTEXT_SWITCH_HOOK() in chconf.h
- */
+
+// To be added to CH_CFG_THREAD_EXTRA_FIELDS
+#define TIMESTAMPS_THREAD_EXTRA_FIELDS					                    \
+	uint8_t log_this_thread;
+
+// To be added to CH_CFG_THREAD_INIT_HOOK
+#define TIMESTAMPS_THREAD_INIT_HOOK						                    \
+		tp->log_this_thread = getLogSetting();
+
+// To be added to CH_CFG_THREAD_EXIT_HOOK
+#define TIMESTAMPS_THREAD_EXIT_HOOK(tp)									    \
+        removeThread(tp);
+// To be added to CH_CFG_CONTEXT_SWITCH_HOOK
+#define TIMESTAMPS_CONTEXT_SWITCH_HOOK(ntp, otp)						    \
+        fillThreadsTimestamps(ntp, otp);
+
 
 #ifdef TIMESTAMPS_INCLUDE
 
@@ -13,7 +24,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 uint8_t getLogSetting(void);
-
 void fillThreadsTimestamps(void* in, void* out);
 void removeThread(void* otp);
 #ifdef __cplusplus
@@ -23,4 +33,3 @@ void removeThread(void* otp);
 
 #undef TIMESTAMPS_INCLUDE
 #endif /* TIMESTAMPS_INCLUDE */
-

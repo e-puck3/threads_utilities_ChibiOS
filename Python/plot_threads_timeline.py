@@ -224,19 +224,18 @@ def process_threads_timestamps_cmd(lines):
 
 	# Gets the trigger time if any
 	if(lines[first_data_line][:len('Triggered at ')] == 'Triggered at '):
-		global trigger_time
-		trigger_time = int(lines[first_data_line][len('Triggered at '):])
+		trigger = int(lines[first_data_line][len('Triggered at '):])
 		first_data_line = 2
 	# No trigger
 	else:
-		trigger_time = None
+		trigger = None
 
 	# If the received text doesn't match what we expect, print it and quit
 	if(lines[first_data_line][:len('From ')] != 'From '):
 		print('Bad answer received, see below :')
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
-		return 0, FUNC_FAILED
+		return 0, None, FUNC_FAILED
 
 	counter = 0
 	max_counter = 0
@@ -351,7 +350,7 @@ def process_threads_timestamps_cmd(lines):
 	if(max_counter == 0):
 		max_counter = 1
 
-	return max_counter, FUNC_SUCCESS
+	return max_counter, trigger, FUNC_SUCCESS
 
 def get_thread_prio(thread):
 	return thread['prio']
@@ -406,11 +405,14 @@ def write_to_file(event):
 
 def load_text_from_file():
 	error = False
+	file_path = ''
 	# MACOS
 	if(sys.platform == 'darwin'):
 		out = exec_applescript("""the POSIX path of (choose file with prompt "Please choose a file:"  default location (get path to home folder)) """)
 		file_path = out.decode("utf-8")
 		file_path = file_path.replace('\n', '')
+	else:
+		print('Your OS is not supported')
 
 	try:
 		# Opens the file as Read Text
@@ -459,6 +461,7 @@ def read_new_timestamps(event, input_src):
 
 	global nb_subdivisions
 	global trigger_bar
+	global trigger_time
 	global text_lines_list
 	global text_lines_data
 	global port
@@ -481,37 +484,32 @@ def read_new_timestamps(event, input_src):
 		send_command('threads_list', True)
 		lines_list = receive_text(True)
 		result = process_threads_list_cmd(lines_list)
-		if(result == FUNC_SUCCESS):
-			text_lines_list = lines_list
-		else:
+		if(result == FUNC_FAILED):
 			return
 
 		# Sends command "threads_timestamps"
 		send_command('threads_timestamps', True)
 		lines_data = receive_text(False)
-		subdivisions, result = process_threads_timestamps_cmd(lines_data)
-		if(result == FUNC_SUCCESS):
-			text_lines_data = lines_data
-			nb_subdivisions = subdivisions
-		else:
+		subdivisions, trigger, result = process_threads_timestamps_cmd(lines_data)
+		if(result == FUNC_FAILED):
 			return
 
 	elif(input_src == READ_FROM_FILE):
 		lines_list, lines_data = load_text_from_file()
 
 		result = process_threads_list_cmd(lines_list)
-		if(result == FUNC_SUCCESS):
-			text_lines_list = lines_list
-		else:
+		if(result == FUNC_FAILED):
 			return
 
-		subdivisions, result = process_threads_timestamps_cmd(lines_data)
-		if(result == FUNC_SUCCESS):
-			text_lines_data = lines_data
-			nb_subdivisions = subdivisions
-		else:
+		subdivisions, trigger, result = process_threads_timestamps_cmd(lines_data)
+		if(result == FUNC_FAILED):
 			return
 
+	# Updates the values
+	text_lines_list = lines_list
+	text_lines_data = lines_data
+	nb_subdivisions = subdivisions
+	trigger_time = trigger
 
 	sort_threads_by_prio()
 
@@ -531,6 +529,8 @@ def read_new_timestamps(event, input_src):
 
 	# # Setting X-axis limits 
 	# gnt.set_xlim(0, 3000) 
+
+	print('New data received, redrawing the timeline')
 
 	gnt.set_title('Threads timeline')
 
@@ -578,14 +578,20 @@ def read_new_timestamps(event, input_src):
 	# Updates the toolbar to remove the history on zoom/diplacement and set the new home
 	fig.canvas.toolbar.update()
 
+	print('Drawing finished')
+
 def timestamps_trigger(event):
-	connect_serial()
+	result = connect_serial()
+	if(result == FUNC_FAILED):
+		return
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_trigger', True)
 	receive_text(True)
 
 def timestamps_run(event):
-	connect_serial()
+	result = connect_serial()
+	if(result == FUNC_FAILED):
+		return
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_run', True)
 	receive_text(True)

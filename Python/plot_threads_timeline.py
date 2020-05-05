@@ -20,6 +20,8 @@ import serial
 import struct
 import sys
 import time
+import os
+from subprocess import Popen, PIPE
 
 GOODBYE = """
 		  |\      _,,,---,,_
@@ -52,6 +54,9 @@ GOODBYE2 = """
 
 NEW_RECEIVED_LINE = '> '
 
+FUNC_SUCCESS = True
+FUNC_FAILED = False
+
 WINDOWS_SIZE_X 		= 15
 WINDOWS_SIZE_Y 		= 10
 WINDOWS_DPI			= 90
@@ -77,11 +82,20 @@ RAW_TIME 		= 0
 RAW_IN_OUT_TYPE	= 1
 RAW_SHIFT_NB	= 2
 
+# input possibilities
+port = None
+READ_FROM_SERIAL = 0
+READ_FROM_FILE = 1
+
 threads = []
 deleted_threads = []
 threads_name_list = []
 trigger_time = None
+trigger_bar = None
 nb_subdivisions = 0
+
+text_lines_list = []
+text_lines_data = []
 
 def flush_shell():
 	# In case there was a communication problem
@@ -150,7 +164,7 @@ def process_threads_list_cmd(lines):
 		print('Bad answer received, see below :')
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
-		sys.exit(0)
+		return FUNC_FAILED
 
 	for i in range(1,len(lines)-1):
 		if(not deleted and lines[i] == 'Deleted threads: '):
@@ -173,6 +187,8 @@ def process_threads_list_cmd(lines):
 	# 	 we recover the original threads creation order
 	while(len(deleted_threads)):
 		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
+
+	return FUNC_SUCCESS
 
 
 def process_threads_timestamps_cmd(lines):
@@ -198,7 +214,7 @@ def process_threads_timestamps_cmd(lines):
 		print('Bad answer received, see below :')
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
-		sys.exit(0)
+		return 0, FUNC_FAILED
 
 	counter = 0
 	max_counter = 0
@@ -313,15 +329,13 @@ def process_threads_timestamps_cmd(lines):
 	if(max_counter == 0):
 		max_counter = 1
 
-	return max_counter
+	return max_counter, FUNC_SUCCESS
 
 def get_thread_prio(thread):
 	return thread['prio']
 
 def sort_threads_by_prio():
 	threads.sort(key=get_thread_prio)
-
-trigger_bar = None
 
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
@@ -350,36 +364,140 @@ def on_xlims_change(axes):
 
 	redraw_trigger_bar(values_number)
 
-def read_new_timestamps(event):
+def exec_applescript(script):
+	p = Popen(['osascript', '-e', script], stdout=PIPE, stderr=PIPE)
+	out = p.stdout.read()
+	return out
+
+def write_to_file(event):
+	# Opens the file as Write Text
+	file = open('/Users/eliot/Desktop/test.txt','wt')
+	# Writes the lines to the file
+	for line in text_lines_list:
+		file.write(line + '\n')
+	for line in text_lines_data:
+		file.write(line + '\n')
+
+	file.close()
+	print('Saved !')
+
+
+def load_text_from_file():
+	error = False
+	# MACOS
+	if(sys.platform == 'darwin'):
+		out = exec_applescript("""the POSIX path of (choose file with prompt "Please choose a file:"  default location (get path to home folder)) """)
+		file_path = out.decode("utf-8")
+		file_path = file_path.replace('\n', '')
+
+	try:
+		# Opens the file as Read Text
+		file = open(file_path, 'rt')
+	except:
+		print("File doesn't exist")
+		error = True
+
+	if(not error):
+		print('Loading file ',file_path)
+		rcv_text = file.read()
+		file.close()
+		rcv_lines = rcv_text.split('\n')
+		index_list = None
+		index_data = None
+
+		# j is used to correct the index in the case we remove an emply line
+		j = 0
+		for i in range(len(rcv_lines)):
+			# Removes emply lines
+			if(len(rcv_lines[i-j]) == 0):
+				rcv_lines.pop(i-j)
+				j += 1
+				continue
+			# Searches for the beginning of the thread_list fields
+			if((index_list == None) and (rcv_lines[i-j].find('threads_list') != -1)):
+				index_list = i-j
+			#searches for the beginning of the threads_timestamps fields
+			elif((index_data == None) and (rcv_lines[i-j].find('threads_timestamps') != -1)):
+				index_data = i-j
+
+		if(index_list == None or index_data == None):
+			error = True
+		else:
+			rcv_lines_list = rcv_lines[index_list:index_data]
+			rcv_lines_data = rcv_lines[index_data:]
+
+	if(not error):
+		print('File loaded')
+		return rcv_lines_list, rcv_lines_data
+	else:
+		return [file_path,'File not recognized'],[]
+
+
+def read_new_timestamps(event, input_src):
 
 	global nb_subdivisions
 	global trigger_bar
-
-	flush_shell()
+	global text_lines_list
+	global text_lines_data
+	global port
 
 	threads.clear()
 	deleted_threads.clear()
 	threads_name_list.clear()
+
+	if(input_src == READ_FROM_SERIAL):
+
+		try:
+			port = serial.Serial(sys.argv[1], timeout=0.1)
+		except:
+			print('Cannot connect to the device')
+			return
+
+		print('Connecting to port {}'.format(sys.argv[1]))
+
+		flush_shell()
+
+		print('Getting new data from serial')
+
+		# Sends command "threads_list"
+		send_command('threads_list', True)
+		lines_list = receive_text(True)
+		result = process_threads_list_cmd(lines_list)
+		text_lines_list = lines_list
+		# if(result == FUNC_SUCCESS):
+		# 	text_lines_list = lines_list
+		# else:
+		# 	return
+
+		# Sends command "threads_timestamps"
+		send_command('threads_timestamps', True)
+		lines_data = receive_text(False)
+		subdivisions, result = process_threads_timestamps_cmd(lines_data)
+		text_lines_data = lines_data
+		nb_subdivisions = subdivisions
+		# if(result == FUNC_SUCCESS):
+		# 	text_lines_data = lines_data
+		# 	nb_subdivisions = subdivisions
+		# else:
+		# 	return
+
+		port.close()
+		print('Port {} closed'.format(sys.argv[1]))
+
+	elif(input_src == READ_FROM_FILE):
+		text_lines_list, text_lines_data = load_text_from_file()
+
+		process_threads_list_cmd(text_lines_list)
+		nb_subdivisions = process_threads_timestamps_cmd(text_lines_data)
+
+
+	sort_threads_by_prio()
 
 	if(trigger_bar != None):
 		trigger_bar.remove()
 		trigger_bar = None
 
 	gnt.clear()
-
-	print('Getting new data')
-
-	# Sends command "threads_list"
-	send_command('threads_list', True)
-	rcv_lines = receive_text(True)
-	process_threads_list_cmd(rcv_lines)
-
-	# Sends command "threads_timestamps"
-	send_command('threads_timestamps', True)
-	rcv_lines = receive_text(False)
-	nb_subdivisions = process_threads_timestamps_cmd(rcv_lines)
-
-	sort_threads_by_prio()
 
 	for thread in threads:
 		if(thread['have_values']):
@@ -456,14 +574,6 @@ if len(sys.argv) == 1:
 	sys.exit(0)
 
 
-try:
-	port = serial.Serial(sys.argv[1], timeout=0.1)
-except:
-	print('Cannot connect to the device')
-	sys.exit(0)
-
-print('Connecting to port {}'.format(sys.argv[1]))
-
 # # Sends command "threads_stat"
 # send_command('threads_stat', False)
 # print('Stack usage of the running threads')
@@ -486,20 +596,21 @@ colorAxGreen            	= 'lightgreen'
 triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
 runAx             			= plt.axes([0.7, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
+loadAx 						= plt.axes([0.1, 0.025, 0.1, 0.04])
+saveAx 						= plt.axes([0.2, 0.025, 0.1, 0.04])
+loadButton 					= Button(loadAx, 'Load file', color=colorAxBlue, hovercolor='0.7')
+saveButton					= Button(saveAx, 'Save file', color=colorAxBlue, hovercolor='0.7')
 triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
 runButton	             	= Button(runAx, 'Run mode', color=colorAxBlue, hovercolor='0.7')
 readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
 
+loadButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_FILE))
+saveButton.on_clicked(write_to_file)
 triggerButton.on_clicked(timestamps_trigger)
 runButton.on_clicked(timestamps_run)
-readButton.on_clicked(read_new_timestamps)
-
-read_new_timestamps(None)
+readButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_SERIAL))
 
 plt.show()
-
-port.close()
-print('Port {} closed'.format(sys.argv[1]))
 
 # Be polite, say goodbye :-)
 print(GOODBYE)

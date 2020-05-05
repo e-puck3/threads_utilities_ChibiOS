@@ -97,6 +97,28 @@ nb_subdivisions = 0
 text_lines_list = []
 text_lines_data = []
 
+def connect_serial():
+	global port
+	if(port == None):
+		try:
+			print('Connecting to port {}'.format(sys.argv[1]))
+			port = serial.Serial(sys.argv[1], timeout=0.1)
+		except:
+			print('Cannot connect to the device')
+			port = None
+			return FUNC_FAILED
+
+	return FUNC_SUCCESS
+
+def disconnect_serial():
+	global port
+	if(port == None):
+		print('Already disconnected')
+	else:
+		port.close()
+		port = None
+		print('Port {} closed'.format(sys.argv[1]))
+
 def flush_shell():
 	# In case there was a communication problem
 	# we send two return commands to trigger the sending of 
@@ -447,13 +469,9 @@ def read_new_timestamps(event, input_src):
 
 	if(input_src == READ_FROM_SERIAL):
 
-		try:
-			port = serial.Serial(sys.argv[1], timeout=0.1)
-		except:
-			print('Cannot connect to the device')
+		result = connect_serial()
+		if(result == FUNC_FAILED):
 			return
-
-		print('Connecting to port {}'.format(sys.argv[1]))
 
 		flush_shell()
 
@@ -463,32 +481,36 @@ def read_new_timestamps(event, input_src):
 		send_command('threads_list', True)
 		lines_list = receive_text(True)
 		result = process_threads_list_cmd(lines_list)
-		text_lines_list = lines_list
-		# if(result == FUNC_SUCCESS):
-		# 	text_lines_list = lines_list
-		# else:
-		# 	return
+		if(result == FUNC_SUCCESS):
+			text_lines_list = lines_list
+		else:
+			return
 
 		# Sends command "threads_timestamps"
 		send_command('threads_timestamps', True)
 		lines_data = receive_text(False)
 		subdivisions, result = process_threads_timestamps_cmd(lines_data)
-		text_lines_data = lines_data
-		nb_subdivisions = subdivisions
-		# if(result == FUNC_SUCCESS):
-		# 	text_lines_data = lines_data
-		# 	nb_subdivisions = subdivisions
-		# else:
-		# 	return
-
-		port.close()
-		print('Port {} closed'.format(sys.argv[1]))
+		if(result == FUNC_SUCCESS):
+			text_lines_data = lines_data
+			nb_subdivisions = subdivisions
+		else:
+			return
 
 	elif(input_src == READ_FROM_FILE):
-		text_lines_list, text_lines_data = load_text_from_file()
+		lines_list, lines_data = load_text_from_file()
 
-		process_threads_list_cmd(text_lines_list)
-		nb_subdivisions = process_threads_timestamps_cmd(text_lines_data)
+		result = process_threads_list_cmd(lines_list)
+		if(result == FUNC_SUCCESS):
+			text_lines_list = lines_list
+		else:
+			return
+
+		subdivisions, result = process_threads_timestamps_cmd(lines_data)
+		if(result == FUNC_SUCCESS):
+			text_lines_data = lines_data
+			nb_subdivisions = subdivisions
+		else:
+			return
 
 
 	sort_threads_by_prio()
@@ -557,11 +579,13 @@ def read_new_timestamps(event, input_src):
 	fig.canvas.toolbar.update()
 
 def timestamps_trigger(event):
+	connect_serial()
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_trigger', True)
 	receive_text(True)
 
 def timestamps_run(event):
+	connect_serial()
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_run', True)
 	receive_text(True)
@@ -593,24 +617,28 @@ plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
 colorAxBlue             	= 'lightblue'
 colorAxBlueHovering        	= 'lightblue'
 colorAxGreen            	= 'lightgreen'
+loadAx 						= plt.axes([0.1, 0.025, 0.1, 0.04])
+saveAx 						= plt.axes([0.2, 0.025, 0.1, 0.04])
 triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
 runAx             			= plt.axes([0.7, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
-loadAx 						= plt.axes([0.1, 0.025, 0.1, 0.04])
-saveAx 						= plt.axes([0.2, 0.025, 0.1, 0.04])
+disconnectAx 				= plt.axes([0.9, 0.025, 0.1, 0.04])
 loadButton 					= Button(loadAx, 'Load file', color=colorAxBlue, hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color=colorAxBlue, hovercolor='0.7')
 triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
 runButton	             	= Button(runAx, 'Run mode', color=colorAxBlue, hovercolor='0.7')
 readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
+disconnectButton 			= Button(disconnectAx, 'Disconnect', color=colorAxBlue, hovercolor='0.7')
 
 loadButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_FILE))
 saveButton.on_clicked(write_to_file)
 triggerButton.on_clicked(timestamps_trigger)
 runButton.on_clicked(timestamps_run)
 readButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_SERIAL))
+disconnectButton.on_clicked(lambda x: disconnect_serial())
 
 plt.show()
 
+disconnect_serial()
 # Be polite, say goodbye :-)
 print(GOODBYE)

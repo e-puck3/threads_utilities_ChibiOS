@@ -11,10 +11,6 @@
 #
 #					  To run the script : "python3 plot_threads_timeline.py serialPort"
 
-# Applescript commands source : https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/PromptforaFileName.html
-# PowerShell commands sources : https://stackoverflow.com/questions/15885132/file-folder-chooser-dialog-from-a-windows-batch-script 
-#							  : https://docs.microsoft.com/en-us/dotnet/api/system.windows.forms.filedialog?view=netcore-3.1
-
 import matplotlib.pyplot as plt
 import  matplotlib.ticker as tick
 from matplotlib.widgets import Button
@@ -56,9 +52,11 @@ GOODBYE2 = """
 							   |___/        
 """
 
+# https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/PromptforaFileName.html
 OPEN_FILE_APPLESCRIPT = """the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to desktop folder))"""
 SAVE_FILE_APPLESCRIPT = """the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to desktop folder))"""
-
+# https://stackoverflow.com/questions/15885132/file-folder-chooser-dialog-from-a-windows-batch-script
+# https://docs.microsoft.com/en-us/dotnet/api/system.windows.forms.filedialog?view=netcore-3.1
 OPEN_FILE_POWERSHELL = """
 Add-Type -AssemblyName System.Windows.Forms
 $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 

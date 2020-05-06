@@ -385,14 +385,57 @@ def on_xlims_change(axes):
 
 	redraw_trigger_bar(values_number)
 
+# Only for MacOS
 def exec_applescript(script):
 	p = Popen(['osascript', '-e', script], stdout=PIPE, stderr=PIPE)
 	out = p.stdout.read()
-	return out
+	err = p.stderr.read()
+	out = out.decode("utf-8")
+	out = out.replace('\n', '')
+	err = err.decode("utf-8")
+	err = err.replace('\n', '')
+	return out, err
 
-def write_to_file(event):
+def write_timestamps_to_file(event):
+
+	if(len(text_lines_data) == 0):
+		print('No data to save !')
+		return
+
+	# MACOS
+	if(sys.platform == 'darwin'):
+		file_path, error = exec_applescript("""the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to home folder))""")
+	else:
+		print('Your OS is not supported')
+
+	if(len(error) > 0):
+		print('File not saved')
+		print('Error:', error)
+		return
+
+	# Splits the name and the extension of the file
+	file_name = file_path
+	while(True):
+		file_name, extension = os.path.splitext(file_name)
+		if(len(extension) == 0):
+			break
+	extension = file_path[len(file_name):]
+
+	# Adds the txt extension if not present
+	if(extension != '.txt'):
+		extension += '.txt'
+
+	# Adds a number to the name if the file already exists
+	i = 2
+	if(os.path.exists(file_name + extension)):
+		while(os.path.exists(file_name + str(i) + extension)):
+			i += 1
+		file_name += str(i)
+
+	file_path = file_name + extension
+
 	# Opens the file as Write Text
-	file = open('/Users/eliot/Desktop/test.txt','wt')
+	file = open(file_path,'wt')
 	# Writes the lines to the file
 	for line in text_lines_list:
 		file.write(line + '\n')
@@ -400,26 +443,29 @@ def write_to_file(event):
 		file.write(line + '\n')
 
 	file.close()
-	print('Saved !')
+	print(file_path, 'Saved !')
 
 
-def load_text_from_file():
-	error = False
+def load_timestamps_from_file():
 	file_path = ''
 	# MACOS
 	if(sys.platform == 'darwin'):
-		out = exec_applescript("""the POSIX path of (choose file with prompt "Please choose a file:"  default location (get path to home folder)) """)
-		file_path = out.decode("utf-8")
-		file_path = file_path.replace('\n', '')
+		file_path, error = exec_applescript("""the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to home folder)) """)
 	else:
 		print('Your OS is not supported')
 
-	try:
-		# Opens the file as Read Text
-		file = open(file_path, 'rt')
-	except:
-		print("File doesn't exist")
+	if(len(error) > 0):
+		print('Error:', error)
 		error = True
+	else:
+		error = False
+
+		try:
+			# Opens the file as Read Text
+			file = open(file_path, 'rt')
+		except:
+			print("File doesn't exist")
+			error = True
 
 	if(not error):
 		print('Loading file ',file_path)
@@ -495,7 +541,7 @@ def read_new_timestamps(event, input_src):
 			return
 
 	elif(input_src == READ_FROM_FILE):
-		lines_list, lines_data = load_text_from_file()
+		lines_list, lines_data = load_timestamps_from_file()
 
 		result = process_threads_list_cmd(lines_list)
 		if(result == FUNC_FAILED):
@@ -637,7 +683,7 @@ readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, ho
 disconnectButton 			= Button(disconnectAx, 'Disconnect', color=colorAxBlue, hovercolor='0.7')
 
 loadButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_FILE))
-saveButton.on_clicked(write_to_file)
+saveButton.on_clicked(write_timestamps_to_file)
 triggerButton.on_clicked(timestamps_trigger)
 runButton.on_clicked(timestamps_run)
 readButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_SERIAL))

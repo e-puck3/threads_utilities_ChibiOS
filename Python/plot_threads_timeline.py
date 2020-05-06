@@ -11,6 +11,10 @@
 #
 #					  To run the script : "python3 plot_threads_timeline.py serialPort"
 
+# Applescript commands source : https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/PromptforaFileName.html
+# PowerShell commands sources : https://stackoverflow.com/questions/15885132/file-folder-chooser-dialog-from-a-windows-batch-script 
+#							  : https://docs.microsoft.com/en-us/dotnet/api/system.windows.forms.filedialog?view=netcore-3.1
+
 import matplotlib.pyplot as plt
 import  matplotlib.ticker as tick
 from matplotlib.widgets import Button
@@ -51,6 +55,23 @@ GOODBYE2 = """
 								__/ |       
 							   |___/        
 """
+
+OPEN_FILE_APPLESCRIPT = """the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to home folder))"""
+SAVE_FILE_APPLESCRIPT = """the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to home folder))"""
+
+OPEN_FILE_POWERSHELL = """
+Add-Type -AssemblyName System.Windows.Forms
+$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
+    Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
+}
+$null = $FileBrowser.ShowDialog()
+$FileBrowser.FileName
+if(-Not $FileBrowser.FileName){
+	[Console]::Error.WriteLine("Cancelled by user")
+}
+"""
+SAVE_FILE_POWERSHELL = """"""
 
 NEW_RECEIVED_LINE = '> '
 
@@ -444,6 +465,16 @@ def exec_applescript(script):
 	err = err.replace('\n', '')
 	return out, err
 
+def exec_powershell(script):
+	p = Popen(['powershell.exe', script], stdout=PIPE, stderr=PIPE)
+	out = p.stdout.read()
+	err = p.stderr.read()
+	out = out.decode("utf-8")
+	out = out.replace('\r\n', '')
+	err = err.decode("utf-8")
+	err = err.replace('\r\n', '')
+	return out, err
+
 def write_timestamps_to_file():
 
 	if(len(text_lines_data) == 0):
@@ -452,9 +483,9 @@ def write_timestamps_to_file():
 
 	# MACOS
 	if(sys.platform == 'darwin'):
-		file_path, error = exec_applescript("""the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to home folder))""")
+		file_path, error = exec_applescript(SAVE_FILE_APPLESCRIPT)
 	else:
-		print('Your OS is not supported')
+		error = 'Your OS is not supported'
 
 	if(len(error) > 0):
 		print('File not saved')
@@ -505,9 +536,12 @@ def load_timestamps_from_file():
 	file_path = ''
 	# MACOS
 	if(sys.platform == 'darwin'):
-		file_path, error = exec_applescript("""the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to home folder)) """)
+		file_path, error = exec_applescript(OPEN_FILE_APPLESCRIPT)
+	# Windows
+	elif(sys.platform == 'win32'):
+		file_path, error = exec_powershell(OPEN_FILE_POWERSHELL)
 	else:
-		print('Your OS is not supported')
+		error = 'Your OS is not supported'
 
 	if(len(error) > 0):
 		print('Error:', error)

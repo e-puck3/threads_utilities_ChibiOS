@@ -476,6 +476,13 @@ def write_timestamps_to_file():
 
 	# Opens the file as Write Text
 	file = open(file_path,'wt')
+
+	# Writes the position in the graph
+	xlim = gnt.axes.get_xlim()
+	ylim = gnt.axes.get_ylim()
+	file.write('Saved position\n')
+	file.write(str(xlim[0]) + '\n' + str(xlim[1]) + '\n' + str(ylim[0]) + '\n' + str(ylim[1]) + '\n')
+
 	# Writes the lines to the file
 	for line in text_lines_list:
 		file.write(line + '\n')
@@ -512,6 +519,7 @@ def load_timestamps_from_file():
 		rcv_text = file.read()
 		file.close()
 		rcv_lines = rcv_text.split('\n')
+		index_pos = None
 		index_list = None
 		index_data = None
 
@@ -523,6 +531,9 @@ def load_timestamps_from_file():
 				rcv_lines.pop(i-j)
 				j += 1
 				continue
+			# Searches for the beginning of the Saved position fields
+			if((index_pos == None) and (rcv_lines[i-j].find('Saved position') != -1)):
+				index_pos = i-j
 			# Searches for the beginning of the thread_list fields
 			if((index_list == None) and (rcv_lines[i-j].find('threads_list') != -1)):
 				index_list = i-j
@@ -530,17 +541,24 @@ def load_timestamps_from_file():
 			elif((index_data == None) and (rcv_lines[i-j].find('threads_timestamps') != -1)):
 				index_data = i-j
 
-		if(index_list == None or index_data == None):
+		# Tests if the file ends with ch> 
+		if(rcv_lines[-1] != 'ch> '):
+			error = True
+
+		# Tests if we found all the fields
+		if(index_pos == None or index_list == None or index_data == None):
 			error = True
 		else:
+			# Removes the Saved position for the rcv_lines_pos list
+			rcv_lines_pos  = rcv_lines[index_pos + 1:index_list]
 			rcv_lines_list = rcv_lines[index_list:index_data]
 			rcv_lines_data = rcv_lines[index_data:]
 
 	if(not error):
 		print('File loaded')
-		return rcv_lines_list, rcv_lines_data
+		return rcv_lines_pos, rcv_lines_list, rcv_lines_data
 	else:
-		return [file_path,'File not recognized'],[]
+		return [], [file_path,'File not recognized'], []
 
 
 def read_new_timestamps(input_src):
@@ -579,8 +597,11 @@ def read_new_timestamps(input_src):
 		if(result == FUNC_FAILED):
 			return
 
+		# We only read a saved position from a file
+		lines_pos = None
+
 	elif(input_src == READ_FROM_FILE):
-		lines_list, lines_data = load_timestamps_from_file()
+		lines_pos, lines_list, lines_data = load_timestamps_from_file()
 
 		result = process_threads_list_cmd(lines_list)
 		if(result == FUNC_FAILED):
@@ -658,6 +679,11 @@ def read_new_timestamps(input_src):
 
 	# Updates the toolbar to remove the history on zoom/diplacement and set the new home
 	fig.canvas.toolbar.update()
+
+	# Updates the position in the graph if read from a file
+	if(lines_pos != None):
+		gnt.axes.set_xlim(float(lines_pos[0]), float(lines_pos[1]))
+		gnt.axes.set_ylim(float(lines_pos[2]), float(lines_pos[3]))
 
 	print('Drawing finished')
 

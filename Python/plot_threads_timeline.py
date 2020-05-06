@@ -90,7 +90,7 @@ serial_connected = False
 READ_FROM_SERIAL = 0
 READ_FROM_FILE = 1
 
-default_graph_pos = []
+default_graph_pos = [0, 1, 0, 1]
 
 threads = []
 deleted_threads = []

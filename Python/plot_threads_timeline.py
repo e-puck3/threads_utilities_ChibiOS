@@ -56,8 +56,8 @@ GOODBYE2 = """
 							   |___/        
 """
 
-OPEN_FILE_APPLESCRIPT = """the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to home folder))"""
-SAVE_FILE_APPLESCRIPT = """the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to home folder))"""
+OPEN_FILE_APPLESCRIPT = """the POSIX path of (choose file with prompt "Please choose a txt file:" of type {"TXT"} default location (get path to desktop folder))"""
+SAVE_FILE_APPLESCRIPT = """the POSIX path of (choose file name with prompt "Please choose a file:" default name "timestamps.txt" default location (get path to desktop folder))"""
 
 OPEN_FILE_POWERSHELL = """
 Add-Type -AssemblyName System.Windows.Forms

@@ -64,12 +64,28 @@ $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
     Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
 }
 $null = $FileBrowser.ShowDialog()
-$FileBrowser.FileName
+# Writes an error if empty (means we cancelled)
 if(-Not $FileBrowser.FileName){
 	[Console]::Error.WriteLine("Cancelled by user")
+}else{
+	$FileBrowser.FileName	
 }
 """
-SAVE_FILE_POWERSHELL = """"""
+SAVE_FILE_POWERSHELL = """
+Add-Type -AssemblyName System.Windows.Forms
+$FileBrowser = New-Object System.Windows.Forms.SaveFileDialog -Property @{ 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
+    FileName = "timestamps.txt"
+    Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
+}
+$null = $FileBrowser.ShowDialog()
+# Writes an error if still default filename (means we cancelled)
+if($FileBrowser.FileName -eq "timestamps.txt"){
+	[Console]::Error.WriteLine("Cancelled by user")
+}else{
+	$FileBrowser.FileName
+}
+"""
 
 NEW_RECEIVED_LINE = '> '
 
@@ -482,6 +498,9 @@ def write_timestamps_to_file():
 	# MACOS
 	if(sys.platform == 'darwin'):
 		file_path, error = exec_applescript(SAVE_FILE_APPLESCRIPT)
+	# Windows
+	elif(sys.platform == 'win32'):
+		file_path, error = exec_powershell(SAVE_FILE_POWERSHELL)
 	else:
 		error = 'Your OS is not supported'
 

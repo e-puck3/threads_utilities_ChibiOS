@@ -86,6 +86,36 @@ if($FileBrowser.FileName -eq "timestamps.txt"){
 	$FileBrowser.FileName
 }
 """
+# https://help.gnome.org/users/zenity/stable/file-selection.html.en
+OPEN_FILE_BASH_LINUX = """
+#!bin/bash
+
+FILE=`zenity --file-selection --title="Select a File" --filename="$HOME/Desktop/" 2>&-`
+
+case $? in
+         0)
+                echo $FILE;;
+         1)
+                echo No file selected>/dev/stderr;;
+        -1)
+                echo An unexpected error has occurred>/dev/stderr;;
+esac
+"""
+
+SAVE_FILE_BASH_LINUX = """
+#!bin/bash
+
+FILE=`zenity --file-selection --title="Select a File" --filename="$HOME/Desktop/timestamps.txt" --save  2>&-`
+
+case $? in
+         0)
+                echo $FILE;;
+         1)
+                echo No name selected>/dev/stderr;;
+        -1)
+                echo An unexpected error has occurred>/dev/stderr;;
+esac
+"""
 
 NEW_RECEIVED_LINE = '> '
 
@@ -479,6 +509,7 @@ def exec_applescript(script):
 	err = err.replace('\n', '')
 	return out, err
 
+# Only for Windows
 def exec_powershell(script):
 	p = Popen(['powershell.exe', script], stdout=PIPE, stderr=PIPE)
 	out = p.stdout.read()
@@ -487,6 +518,17 @@ def exec_powershell(script):
 	out = out.replace('\r\n', '')
 	err = err.decode("utf-8")
 	err = err.replace('\r\n', '')
+	return out, err
+
+# Only for Linux
+def exec_bash(script):
+	p = Popen([script], shell = True, stdout=PIPE, stderr=PIPE)
+	out = p.stdout.read()
+	err = p.stderr.read()
+	out = out.decode("utf-8")
+	out = out.replace('\n', '')
+	err = err.decode("utf-8")
+	err = err.replace('\n', '')
 	return out, err
 
 def write_timestamps_to_file():
@@ -501,6 +543,9 @@ def write_timestamps_to_file():
 	# Windows
 	elif(sys.platform == 'win32'):
 		file_path, error = exec_powershell(SAVE_FILE_POWERSHELL)
+	# Linux
+	elif(sys.platform == 'linux'):
+		file_path, error = exec_bash(SAVE_FILE_BASH_LINUX)
 	else:
 		error = 'Your OS is not supported'
 
@@ -557,6 +602,9 @@ def load_timestamps_from_file():
 	# Windows
 	elif(sys.platform == 'win32'):
 		file_path, error = exec_powershell(OPEN_FILE_POWERSHELL)
+	# Linux
+	elif(sys.platform == 'linux'):
+		file_path, error = exec_bash(OPEN_FILE_BASH_LINUX)
 	else:
 		error = 'Your OS is not supported'
 

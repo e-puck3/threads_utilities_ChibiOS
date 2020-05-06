@@ -84,6 +84,7 @@ RAW_SHIFT_NB	= 2
 
 # input possibilities
 port = None
+serial_connected = False
 READ_FROM_SERIAL = 0
 READ_FROM_FILE = 1
 
@@ -99,25 +100,41 @@ text_lines_data = []
 
 def connect_serial():
 	global port
-	if(port == None):
+	global serial_connected
+
+	if(not serial_connected):
 		try:
 			print('Connecting to port {}'.format(sys.argv[1]))
 			port = serial.Serial(sys.argv[1], timeout=0.1)
+			serial_connected = True
 		except:
 			print('Cannot connect to the device')
-			port = None
+			serial_connected = False
 			return FUNC_FAILED
 
 	return FUNC_SUCCESS
 
 def disconnect_serial():
 	global port
-	if(port == None):
+	global serial_connected
+
+	if(not serial_connected):
 		print('Already disconnected')
 	else:
 		port.close()
-		port = None
+		serial_connected = False
 		print('Port {} closed'.format(sys.argv[1]))
+
+def toggle_serial(button):
+	global port
+	# We connect
+	if(not serial_connected):
+		if(connect_serial() == FUNC_SUCCESS):
+			button.label.set_text("Disconnect")
+	# We disconnect
+	else:
+		disconnect_serial()
+		button.label.set_text("Connect")
 
 def flush_shell():
 	# In case there was a communication problem
@@ -510,7 +527,7 @@ def read_new_timestamps(event, input_src):
 	global trigger_time
 	global text_lines_list
 	global text_lines_data
-	global port
+	global serial_connected
 
 	threads.clear()
 	deleted_threads.clear()
@@ -518,8 +535,8 @@ def read_new_timestamps(event, input_src):
 
 	if(input_src == READ_FROM_SERIAL):
 
-		result = connect_serial()
-		if(result == FUNC_FAILED):
+		if(not serial_connected):
+			print('Serial not connected')
 			return
 
 		flush_shell()
@@ -627,16 +644,16 @@ def read_new_timestamps(event, input_src):
 	print('Drawing finished')
 
 def timestamps_trigger(event):
-	result = connect_serial()
-	if(result == FUNC_FAILED):
+	if(not serial_connected):
+		print('Serial not connected')
 		return
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_trigger', True)
 	receive_text(True)
 
 def timestamps_run(event):
-	result = connect_serial()
-	if(result == FUNC_FAILED):
+	if(not serial_connected):
+		print('Serial not connected')
 		return
 	# Sends command "threads_stat"
 	send_command('threads_timestamps_run', True)
@@ -674,20 +691,20 @@ saveAx 						= plt.axes([0.2, 0.025, 0.1, 0.04])
 triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
 runAx             			= plt.axes([0.7, 0.025, 0.1, 0.04])
 readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
-disconnectAx 				= plt.axes([0.9, 0.025, 0.1, 0.04])
+connectionAx 				= plt.axes([0.9, 0.025, 0.1, 0.04])
 loadButton 					= Button(loadAx, 'Load file', color=colorAxBlue, hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color=colorAxBlue, hovercolor='0.7')
 triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
 runButton	             	= Button(runAx, 'Run mode', color=colorAxBlue, hovercolor='0.7')
 readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
-disconnectButton 			= Button(disconnectAx, 'Disconnect', color=colorAxBlue, hovercolor='0.7')
+connectionButton 			= Button(connectionAx, 'Connect', color=colorAxBlue, hovercolor='0.7')
 
 loadButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_FILE))
 saveButton.on_clicked(write_timestamps_to_file)
 triggerButton.on_clicked(timestamps_trigger)
 runButton.on_clicked(timestamps_run)
 readButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_SERIAL))
-disconnectButton.on_clicked(lambda x: disconnect_serial())
+connectionButton.on_clicked(lambda x: toggle_serial(connectionButton))
 
 plt.show()
 

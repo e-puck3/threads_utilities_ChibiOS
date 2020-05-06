@@ -90,6 +90,8 @@ serial_connected = False
 READ_FROM_SERIAL = 0
 READ_FROM_FILE = 1
 
+default_graph_pos = []
+
 threads = []
 deleted_threads = []
 threads_name_list = []
@@ -398,6 +400,12 @@ def get_thread_prio(thread):
 def sort_threads_by_prio():
 	threads.sort(key=get_thread_prio)
 
+def show_all_data_graph(event):
+	gnt.axes.set_xlim(default_graph_pos[0], default_graph_pos[1])
+	gnt.axes.set_ylim(default_graph_pos[2], default_graph_pos[3])
+	plt.draw()
+	print('Now showing all data')
+
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
 	# Redraws the trigger only if we have one value
@@ -569,6 +577,7 @@ def read_new_timestamps(input_src):
 	global text_lines_list
 	global text_lines_data
 	global serial_connected
+	global default_graph_pos
 
 	threads.clear()
 	deleted_threads.clear()
@@ -671,8 +680,12 @@ def read_new_timestamps(input_src):
 			row += 1
 
 	# Draws the first time the trigger bar
-	limits = gnt.axes.get_xlim()
-	redraw_trigger_bar(limits[1] - limits[0])
+	xlimits = gnt.axes.get_xlim()
+	ylimits = gnt.axes.get_ylim()
+	redraw_trigger_bar(xlimits[1] - xlimits[0])
+
+	# Saves the default position
+	default_graph_pos = [xlimits[0], xlimits[1], ylimits[0], ylimits[1]]
 
 	# Set the callback for the next times (when we move or zoom)
 	gnt.callbacks.connect('xlim_changed', on_xlims_change)
@@ -685,6 +698,7 @@ def read_new_timestamps(input_src):
 		gnt.axes.set_xlim(float(lines_pos[0]), float(lines_pos[1]))
 		gnt.axes.set_ylim(float(lines_pos[2]), float(lines_pos[3]))
 
+	plt.draw()
 	print('Drawing finished')
 
 def timestamps_trigger(event):
@@ -734,10 +748,13 @@ plt.subplots_adjust(left = SUBPLOT_ADJ_LEFT, right=SUBPLOT_ADJ_RIGHT, top=SUBPLO
 
 loadAx 						= plt.axes([0.12, 0.025, 0.1, 0.04])
 saveAx 						= plt.axes([0.22, 0.025, 0.1, 0.04])
+showAllAx 					= plt.axes([0.32, 0.025, 0.1, 0.04])
 
 loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
+showAllButton 				= Button(showAllAx, 'Show all data', color='lightblue', hovercolor='0.7')
 
+showAllButton.on_clicked(show_all_data_graph)
 loadButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_FILE))
 saveButton.on_clicked(lambda x: write_timestamps_to_file())
 

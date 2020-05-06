@@ -60,8 +60,10 @@ FUNC_FAILED = False
 WINDOWS_SIZE_X 		= 15
 WINDOWS_SIZE_Y 		= 10
 WINDOWS_DPI			= 90
+SUBPLOT_ADJ_LEFT	= 0.12
 SUBPLOT_ADJ_RIGHT	= 0.97
 SUBPLOT_ADJ_TOP		= 0.96
+SUBPLOT_ADJ_BOTTOM	= 0.11
 
 START_Y_TICKS 				= 10
 SPACING_Y_TICKS 			= 10
@@ -112,6 +114,7 @@ def connect_serial():
 			serial_connected = False
 			return FUNC_FAILED
 
+	print('Connected')
 	return FUNC_SUCCESS
 
 def disconnect_serial():
@@ -123,7 +126,7 @@ def disconnect_serial():
 	else:
 		port.close()
 		serial_connected = False
-		print('Port {} closed'.format(sys.argv[1]))
+		print('Disconnected')
 
 def toggle_serial(button):
 	global port
@@ -131,10 +134,12 @@ def toggle_serial(button):
 	if(not serial_connected):
 		if(connect_serial() == FUNC_SUCCESS):
 			button.label.set_text("Disconnect")
+			button.color='lightcoral'
 	# We disconnect
 	else:
 		disconnect_serial()
 		button.label.set_text("Connect")
+		button.color='lightgreen'
 
 def flush_shell():
 	# In case there was a communication problem
@@ -150,7 +155,7 @@ def flush_shell():
 
 def send_command(command, echo):
 	if(echo == True):
-		print('sent :',command)
+		print('Sent :',command)
 	# A command should finish by a return, otherwise nothing happens
 	command += '\r\n'
 	# We send the command character by character with a small delay
@@ -175,10 +180,28 @@ def receive_text(echo):
 	text_lines = text_rcv.split('\r\n')
 
 	if(echo == True):
+		print('Received:')
 		for line in text_lines:
 			print(NEW_RECEIVED_LINE, line)
 
 	return text_lines
+
+def clear_data_and_graph():
+	global nb_subdivisions
+	global trigger_time
+	global trigger_bar
+	# Updates the values
+	text_lines_list.clear()
+	text_lines_data.clear()
+	nb_subdivisions = 0
+	trigger_time = None
+
+	if(trigger_bar != None):
+		trigger_bar.remove()
+		trigger_bar = None
+
+	gnt.clear()
+	threads_name_list.clear()
 
 def append_thread(thread_list, name, nb, prio, log):
 
@@ -413,7 +436,7 @@ def exec_applescript(script):
 	err = err.replace('\n', '')
 	return out, err
 
-def write_timestamps_to_file(event):
+def write_timestamps_to_file():
 
 	if(len(text_lines_data) == 0):
 		print('No data to save !')
@@ -520,7 +543,7 @@ def load_timestamps_from_file():
 		return [file_path,'File not recognized'],[]
 
 
-def read_new_timestamps(event, input_src):
+def read_new_timestamps(input_src):
 
 	global nb_subdivisions
 	global trigger_bar
@@ -531,7 +554,6 @@ def read_new_timestamps(event, input_src):
 
 	threads.clear()
 	deleted_threads.clear()
-	threads_name_list.clear()
 
 	if(input_src == READ_FROM_SERIAL):
 
@@ -541,7 +563,7 @@ def read_new_timestamps(event, input_src):
 
 		flush_shell()
 
-		print('Getting new data from serial')
+		print('Getting new data from serial\n')
 
 		# Sends command "threads_list"
 		send_command('threads_list', True)
@@ -568,6 +590,8 @@ def read_new_timestamps(event, input_src):
 		if(result == FUNC_FAILED):
 			return
 
+	clear_data_and_graph()
+
 	# Updates the values
 	text_lines_list = lines_list
 	text_lines_data = lines_data
@@ -575,12 +599,6 @@ def read_new_timestamps(event, input_src):
 	trigger_time = trigger
 
 	sort_threads_by_prio()
-
-	if(trigger_bar != None):
-		trigger_bar.remove()
-		trigger_bar = None
-
-	gnt.clear()
 
 	for thread in threads:
 		if(thread['have_values']):
@@ -598,7 +616,7 @@ def read_new_timestamps(event, input_src):
 	gnt.set_title('Threads timeline')
 
 	# Setting labels for x-axis and y-axis 
-	gnt.set_xlabel('milliseconds since boot')
+	gnt.set_xlabel('Milliseconds since boot')
 	gnt.set_ylabel('Threads')
 
 	# Setting ticks on y-axis 
@@ -662,9 +680,14 @@ def timestamps_run(event):
 ###################              BEGINNING OF PROGRAMM               ###################
 
 # Tests if the serial port as been given as argument in the terminal
-if len(sys.argv) == 1:
-	print('Please give the serial port to use as argument')
-	sys.exit(0)
+if (len(sys.argv) == 1):
+	print('No serial port given')
+	print('To use the serial, provide the serial port as argument')
+	serial_port_given = False
+else:
+	if(len(sys.argv) > 2):
+		print('Too many arguments given. Only the first one will be used')
+	serial_port_given = True
 
 
 # # Sends command "threads_stat"
@@ -681,30 +704,32 @@ if len(sys.argv) == 1:
 # figsize is in inch
 fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DPI)
 
-plt.subplots_adjust(right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP)
+plt.subplots_adjust(left = SUBPLOT_ADJ_LEFT, right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP, bottom = SUBPLOT_ADJ_BOTTOM)
 
-colorAxBlue             	= 'lightblue'
-colorAxBlueHovering        	= 'lightblue'
-colorAxGreen            	= 'lightgreen'
-loadAx 						= plt.axes([0.1, 0.025, 0.1, 0.04])
-saveAx 						= plt.axes([0.2, 0.025, 0.1, 0.04])
-triggerAx             		= plt.axes([0.6, 0.025, 0.1, 0.04])
-runAx             			= plt.axes([0.7, 0.025, 0.1, 0.04])
-readAx             			= plt.axes([0.8, 0.025, 0.1, 0.04])
-connectionAx 				= plt.axes([0.9, 0.025, 0.1, 0.04])
-loadButton 					= Button(loadAx, 'Load file', color=colorAxBlue, hovercolor='0.7')
-saveButton					= Button(saveAx, 'Save file', color=colorAxBlue, hovercolor='0.7')
-triggerButton             	= Button(triggerAx, 'Set trigger', color=colorAxBlue, hovercolor='0.7')
-runButton	             	= Button(runAx, 'Run mode', color=colorAxBlue, hovercolor='0.7')
-readButton             		= Button(readAx, 'Get new data', color=colorAxGreen, hovercolor='0.7')
-connectionButton 			= Button(connectionAx, 'Connect', color=colorAxBlue, hovercolor='0.7')
+loadAx 						= plt.axes([0.12, 0.025, 0.1, 0.04])
+saveAx 						= plt.axes([0.22, 0.025, 0.1, 0.04])
 
-loadButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_FILE))
-saveButton.on_clicked(write_timestamps_to_file)
-triggerButton.on_clicked(timestamps_trigger)
-runButton.on_clicked(timestamps_run)
-readButton.on_clicked(lambda x: read_new_timestamps(x, READ_FROM_SERIAL))
-connectionButton.on_clicked(lambda x: toggle_serial(connectionButton))
+loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
+saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
+
+loadButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_FILE))
+saveButton.on_clicked(lambda x: write_timestamps_to_file())
+
+if(serial_port_given):
+	triggerAx             		= plt.axes([0.445, 0.025, 0.1, 0.04])
+	runAx             			= plt.axes([0.545, 0.025, 0.1, 0.04])
+	readAx             			= plt.axes([0.77, 0.025, 0.1, 0.04])
+	connectionAx 				= plt.axes([0.87, 0.025, 0.1, 0.04])
+
+	triggerButton             	= Button(triggerAx, 'Trigger', color='lightcoral', hovercolor='0.7')
+	runButton	             	= Button(runAx, 'Run', color='lightgreen', hovercolor='0.7')
+	readButton             		= Button(readAx, 'Get new data', color='lightgreen', hovercolor='0.7')
+	connectionButton 			= Button(connectionAx, 'Connect', color='lightgreen', hovercolor='0.7')
+
+	triggerButton.on_clicked(timestamps_trigger)
+	runButton.on_clicked(timestamps_run)
+	readButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_SERIAL))
+	connectionButton.on_clicked(lambda x: toggle_serial(connectionButton))
 
 plt.show()
 

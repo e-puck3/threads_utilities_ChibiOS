@@ -531,6 +531,17 @@ def exec_bash(script):
 	err = err.replace('\n', '')
 	return out, err
 
+def split_file_name_extension(file_path):
+	# Splits the name and the extension of the file
+	file_name = file_path
+	while(True):
+		file_name, extension = os.path.splitext(file_name)
+		if(len(extension) == 0):
+			break
+	extension = file_path[len(file_name):]
+
+	return file_name, extension
+
 def write_timestamps_to_file():
 
 	if(len(text_lines_data) == 0):
@@ -555,23 +566,23 @@ def write_timestamps_to_file():
 		return
 
 	# Splits the name and the extension of the file
-	file_name = file_path
-	while(True):
-		file_name, extension = os.path.splitext(file_name)
-		if(len(extension) == 0):
-			break
-	extension = file_path[len(file_name):]
+	file_name, extension = split_file_name_extension(file_path)
 
 	# Adds the txt extension if not present
 	if(extension != '.txt'):
 		extension += '.txt'
-
-	# Adds a number to the name if the file already exists
-	i = 2
-	if(os.path.exists(file_name + extension)):
-		while(os.path.exists(file_name + str(i) + extension)):
-			i += 1
-		file_name += str(i)
+		print('.txt automatically added to the file name')
+		# Adds a number to the name if the file already exists
+		# Only if we added the .txt extension
+		# Otherwise we replace an already existing file becasue it was warned
+		# with the file name selection window
+		i = 2
+		if(os.path.exists(file_name + extension)):
+			while(os.path.exists(file_name + str(i) + extension)):
+				i += 1
+			print('but', file_name + extension, 'already exists')
+			file_name += str(i)
+			print('Renamed to ', file_name + extension)
 
 	file_path = file_name + extension
 

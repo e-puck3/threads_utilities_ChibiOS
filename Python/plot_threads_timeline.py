@@ -64,9 +64,9 @@ $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
     Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
 }
 $null = $FileBrowser.ShowDialog()
-# Writes an error if empty (means we cancelled)
+# Writes an error if empty (means we canceled)
 if(-Not $FileBrowser.FileName){
-	[Console]::Error.WriteLine("Cancelled by user")
+	[Console]::Error.WriteLine("Canceled by user")
 }else{
 	$FileBrowser.FileName	
 }
@@ -79,9 +79,9 @@ $FileBrowser = New-Object System.Windows.Forms.SaveFileDialog -Property @{
     Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
 }
 $null = $FileBrowser.ShowDialog()
-# Writes an error if still default filename (means we cancelled)
+# Writes an error if still default filename (means we canceled)
 if($FileBrowser.FileName -eq "timestamps.txt"){
-	[Console]::Error.WriteLine("Cancelled by user")
+	[Console]::Error.WriteLine("Canceled by user")
 }else{
 	$FileBrowser.FileName
 }
@@ -385,7 +385,7 @@ def process_threads_timestamps_cmd(lines):
 		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
 
 	# Since the count of elements begins at 0 for computations reasons, we 
-	# need t oadd one for the real number of elements used to draw the elements
+	# need to add one for the real number of elements used to draw the elements
 	max_counter += 1
 	step = 1/max_counter
 
@@ -444,8 +444,8 @@ def process_threads_timestamps_cmd(lines):
 					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'out'):
 						thread['out_values'].append((begin - tick_step, tick_step))
 
-					# For incomplete data, exiting a thread is rawn the same as an OUT time
-					# except for the colour
+					# For incomplete data, exiting a thread is drawn the same as an OUT time
+					# except for the color
 					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'exit'):
 						thread['exit_value'].append((begin - tick_step, tick_step))
 
@@ -574,7 +574,7 @@ def write_timestamps_to_file():
 		print('.txt automatically added to the file name')
 		# Adds a number to the name if the file already exists
 		# Only if we added the .txt extension
-		# Otherwise we replace an already existing file becasue it was warned
+		# Otherwise we replace an already existing file because it was warned
 		# with the file name selection window
 		i = 2
 		if(os.path.exists(file_name + extension)):
@@ -641,10 +641,10 @@ def load_timestamps_from_file():
 		index_list = None
 		index_data = None
 
-		# j is used to correct the index in the case we remove an emply line
+		# j is used to correct the index in the case we remove an empty line
 		j = 0
 		for i in range(len(rcv_lines)):
-			# Removes emply lines
+			# Removes empty lines
 			if(len(rcv_lines[i-j]) == 0):
 				rcv_lines.pop(i-j)
 				j += 1
@@ -746,7 +746,7 @@ def read_new_timestamps(input_src):
 			threads_name_list.append(thread['name'].replace(' ','\n') + '\nPrio:'+ str(thread['prio']))
 
 	# Setting Y-axis limits 
-	#gnt.set_ylim(0, 30) 
+	# gnt.set_ylim(0, 30) 
 
 	# # Setting X-axis limits 
 	# gnt.set_xlim(0, 3000) 
@@ -761,7 +761,7 @@ def read_new_timestamps(input_src):
 
 	# Setting ticks on y-axis 
 	gnt.set_yticks(range(START_Y_TICKS, (len(threads_name_list)+1)*SPACING_Y_TICKS, SPACING_Y_TICKS))
-	# Labelling tickes of y-axis 
+	# Labeling ticks of y-axis 
 	gnt.set_yticklabels(threads_name_list, multialignment='center')
 
 	gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
@@ -800,7 +800,7 @@ def read_new_timestamps(input_src):
 	# Set the callback for the next times (when we move or zoom)
 	gnt.callbacks.connect('xlim_changed', on_xlims_change)
 
-	# Updates the toolbar to remove the history on zoom/diplacement and set the new home
+	# Updates the tool-bar to remove the history on zoom/displacement and set the new home
 	fig.canvas.toolbar.update()
 
 	# Updates the position in the graph if read from a file

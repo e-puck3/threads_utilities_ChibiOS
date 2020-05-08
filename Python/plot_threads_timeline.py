@@ -140,14 +140,17 @@ DIVISION_FACTOR_TICK_STEP 	= 3
 ZOOM_LEVEL_THRESHOLD 		= 8
 
 # for the extracted values fields
-EXTR_THREAD_OUT 	= 0
-EXTR_THREAD_IN		= 1
-EXTR_TIME			= 2
+REC_THREAD_OUT 		= 0
+REC_THREAD_IN		= 1
+REC_TIME			= 2
+REC_SHIFT 	 		= 3
+REC_NB_OF_SHIFTS 	= 4
 
 # for the raw_values field of a thread
-RAW_TIME 		= 0
-RAW_IN_OUT_TYPE	= 1
-RAW_SHIFT_NB	= 2
+RAW_TIME 			= 0
+RAW_IN_OUT_TYPE		= 1
+RAW_SHIFT_NB		= 2
+RAW_NB_OF_SHIFTS 	= 3
 
 # input possibilities
 port = None
@@ -162,7 +165,6 @@ deleted_threads = []
 threads_name_list = []
 trigger_time = None
 trigger_bar = None
-nb_subdivisions = 0
 
 text_lines_list = []
 text_lines_data = []
@@ -254,13 +256,11 @@ def receive_text(echo):
 	return text_lines
 
 def clear_data_and_graph():
-	global nb_subdivisions
 	global trigger_time
 	global trigger_bar
 	# Updates the values
 	text_lines_list.clear()
 	text_lines_data.clear()
-	nb_subdivisions = 0
 	trigger_time = None
 
 	if(trigger_bar != None):
@@ -343,54 +343,61 @@ def process_threads_timestamps_cmd(lines):
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
 		return 0, None, FUNC_FAILED
-
-	counter = 0
-	max_counter = 0
+		
+	counter = None
 	last_time = None
+	records = []
+	# A first process of the records to count how many subdivisions we have per timestamp
 	for i in range(first_data_line,len(lines)-1):
+		time 		= int(lines[i][len('From xx to xx at '):])
 		thread_out 	= int(lines[i][len('From '):len('From ')+2])
 		thread_in 	= int(lines[i][len('From xx to '):len('From xx to ')+2])
-		time 		= int(lines[i][len('From xx to xx at '):])
+
+		# Now that we know how many records are during the same timestamp
+		# write it back to all the records which happened during this time
+		if (time != last_time):
+			if(counter != None):
+				for j in range(counter+1):
+					records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+			counter = 0
+		else:
+			counter += 1 
+
+		last_time = time
+		records.append([thread_out, thread_in, time, counter, None])
+
+	# Adds the max_counter to the timestamps of the last time (not done in the loop)
+	for j in range(counter+1):
+		records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+
+	# Dispatches the records to the correct threads
+	# Part where we simulate the deletion of the thread to be correct with the threads numbers
+	for record in records:
+		thread_out 	= record[REC_THREAD_OUT]
+		thread_in 	= record[REC_THREAD_IN]
+		time 		= record[REC_TIME]
+		shift 		= record[REC_SHIFT]
+		nb_of_shifts = record[REC_NB_OF_SHIFTS]
 
 		# A thread has been deleted
 		# We simulate the same to be coherent with the numbering of the timestamps
 		if(thread_out == thread_in):
 			deleted_threads.append(threads.pop(thread_out-1))
 		else:
-			# Counts how many time we enter and leave threads during the same timestamp
-			# to be able to show it on the timeline
-			if (time != last_time):
-				counter = 0
-			else:
-				counter += 1 
-
 			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
 			# -> Add the OUT timestamp to the last deleted thread
 			if(thread_out == 0):
-				deleted_threads[-1]['raw_values'].append((time, 'exit', counter))
+				deleted_threads[-1]['raw_values'].append((time, 'exit', shift, nb_of_shifts))
 			else:
-				threads[thread_out-1]['raw_values'].append((time, 'out', counter))
+				threads[thread_out-1]['raw_values'].append((time, 'out', shift, nb_of_shifts))
 
-			threads[thread_in-1]['raw_values'].append((time, 'in', counter))
-			
-			last_time = time
-			# We need to know the maximum of IN and OUT times during the same timetamp to be able to do
-			# correctly the subdivisions on the timeline
-			if(counter > max_counter):
-				max_counter = counter
+			threads[thread_in-1]['raw_values'].append((time, 'in', shift, nb_of_shifts))
 
 	# Now that every timestamps are with their respective threads, we put every threads together
-	# again for the rest of the code
+	# again in the same list for the rest of the code
 	while(len(deleted_threads)):
 		threads.insert(deleted_threads[-1]['nb']-1, deleted_threads.pop(-1))
 
-	# Since the count of elements begins at 0 for computations reasons, we 
-	# need to add one for the real number of elements used to draw the elements
-	max_counter += 1
-	step = 1/max_counter
-
-	# size of an IN or OUT tick (for incomplete data)
-	tick_step = step/DIVISION_FACTOR_TICK_STEP
 
 	for thread in threads:
 		if(len(thread['raw_values']) > 0):
@@ -402,7 +409,7 @@ def process_threads_timestamps_cmd(lines):
 						# Insert an IN time in case the first we encounter is an out time and time is 0
 						# Happens with the main thread that has no IN time at boot 
 						# (no context switch to main since it's the first thread to begin)
-						thread['raw_values'].insert(0, (0,'in', 0))
+						thread['raw_values'].insert(0, (0,'in', 0, 1))
 					else:
 						# Deletes the first value if it's an OUT time to not mess the timeline
 						thread['raw_values'].pop(0)
@@ -414,6 +421,7 @@ def process_threads_timestamps_cmd(lines):
 
 				# Adds the values by pair to the thread
 				for i in range(0, len(thread['raw_values']), 2):
+					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
 					# The format for broken_barh needs to be (begin, width)
 					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
@@ -426,7 +434,7 @@ def process_threads_timestamps_cmd(lines):
 
 					# Also draw something when we exit a thread
 					if(thread['raw_values'][i+1][RAW_IN_OUT_TYPE] == 'exit'):
-						thread['exit_value'].append((begin + width - tick_step, tick_step))
+						thread['exit_value'].append((begin + step, width))
 				# Indicates if we have timestamps to draw
 				if(len(thread['values']) > 0):
 					thread['have_values'] = True
@@ -435,9 +443,13 @@ def process_threads_timestamps_cmd(lines):
 			else:
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
+					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
+					# size of an IN or OUT tick (for incomplete data)
+					tick_step = step/DIVISION_FACTOR_TICK_STEP
 					# The format for broken_barh needs to be (begin, width)
 					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
+
 					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):
 						thread['in_values'].append((begin, tick_step))
 
@@ -453,11 +465,7 @@ def process_threads_timestamps_cmd(lines):
 				if((len(thread['in_values']) > 0) or (len(thread['out_values']) > 0)):
 					thread['have_values'] = True
 
-	#we can't draw 0 subdivisions
-	if(max_counter == 0):
-		max_counter = 1
-
-	return max_counter, trigger, FUNC_SUCCESS
+	return trigger, FUNC_SUCCESS
 
 def get_thread_prio(thread):
 	return thread['prio']
@@ -490,11 +498,6 @@ def redraw_trigger_bar(x_nb_values_printed):
 def on_xlims_change(axes):
 	a=axes.get_xlim()
 	values_number = a[1]-a[0]
-
-	if(values_number > ZOOM_LEVEL_THRESHOLD):
-		gnt.xaxis.set_minor_locator(tick.NullLocator())
-	else:
-		gnt.xaxis.set_minor_locator(tick.AutoMinorLocator(nb_subdivisions))
 
 	redraw_trigger_bar(values_number)
 
@@ -681,7 +684,6 @@ def load_timestamps_from_file():
 
 def read_new_timestamps(input_src):
 
-	global nb_subdivisions
 	global trigger_bar
 	global trigger_time
 	global text_lines_list
@@ -712,7 +714,7 @@ def read_new_timestamps(input_src):
 		# Sends command "threads_timestamps"
 		send_command('threads_timestamps', True)
 		lines_data = receive_text(False)
-		subdivisions, trigger, result = process_threads_timestamps_cmd(lines_data)
+		trigger, result = process_threads_timestamps_cmd(lines_data)
 		if(result == FUNC_FAILED):
 			return
 
@@ -726,7 +728,7 @@ def read_new_timestamps(input_src):
 		if(result == FUNC_FAILED):
 			return
 
-		subdivisions, trigger, result = process_threads_timestamps_cmd(lines_data)
+		trigger, result = process_threads_timestamps_cmd(lines_data)
 		if(result == FUNC_FAILED):
 			return
 
@@ -735,7 +737,6 @@ def read_new_timestamps(input_src):
 	# Updates the values
 	text_lines_list = lines_list
 	text_lines_data = lines_data
-	nb_subdivisions = subdivisions
 	trigger_time = trigger
 
 	sort_threads_by_prio()

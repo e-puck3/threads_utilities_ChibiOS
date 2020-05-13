@@ -383,12 +383,11 @@ def process_threads_timestamps_cmd(lines):
 		# We simulate the same to be coherent with the numbering of the timestamps
 		if(thread_out == thread_in):
 			deleted_threads.append(threads.pop(thread_out-1))
+			deleted_threads[-1]['raw_values'].append((time, 'exit', shift, nb_of_shifts))
 		else:
 			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
-			# -> Add the OUT timestamp to the last deleted thread
-			if(thread_out == 0):
-				deleted_threads[-1]['raw_values'].append((time, 'exit', shift, nb_of_shifts))
-			else:
+			# -> ignores the OUT because already written as an EXIT previously
+			if(thread_out != 0):
 				threads[thread_out-1]['raw_values'].append((time, 'out', shift, nb_of_shifts))
 
 			threads[thread_in-1]['raw_values'].append((time, 'in', shift, nb_of_shifts))

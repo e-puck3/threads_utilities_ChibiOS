@@ -358,9 +358,9 @@ void resetTriggerTimestamps(void){
 		_triggered = false;
 		_trigger_time = 0;
 		_fill_remaining = 0;
-		// Also resets the logs because otherwise we polute with old values from the trigger
+		// Also resets the logs because otherwise we pollute with old values from the trigger
 		// It's a problem because we can miss OUT or IN times, which destroy the timeline
-		// and if kept, ther is also a big blank between the old and new values since the recording of
+		// and if kept, there is also a big blank between the old and new values since the recording of
 		// the timestamps was paused
 		_fill_pos = 0;
 		_full = false;

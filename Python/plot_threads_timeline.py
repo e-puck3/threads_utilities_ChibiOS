@@ -122,6 +122,7 @@ NEW_RECEIVED_LINE = '> '
 FUNC_SUCCESS = True
 FUNC_FAILED = False
 
+WINDOW_TITLE 		= 'Threads timeline' 
 WINDOWS_SIZE_X 		= 15
 WINDOWS_SIZE_Y 		= 10
 WINDOWS_DPI			= 90
@@ -852,7 +853,7 @@ else:
 
 # Declaring a figure "gnt" 
 # figsize is in inch
-fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DPI)
+fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DPI, num=WINDOW_TITLE)
 
 plt.subplots_adjust(left = SUBPLOT_ADJ_LEFT, right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP, bottom = SUBPLOT_ADJ_BOTTOM)
 

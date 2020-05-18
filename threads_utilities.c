@@ -26,6 +26,22 @@ static uint8_t logSetting = THREADS_TIMESTAMPS_DEFAULT_LOG;
 
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 
+// Mask used to know if we have a thread_t pointer or infos about a deleted dynamic thread
+// The value 0xFFFFxxxx is a memory zone not used to store variables so if we set this value, then
+// we don't have a thread_t pointer but infos about prio and log for a dynamic thread
+#define DYN_THD_REMOVED_MASK 	0xFFFF0000
+
+// bit 31 to bit 16 = FFFF to know if thread_t pointer or the following representation
+// bit 15 to bit 8 	= priority (0-255)	
+// bit 0		 	= thread logged or not (1 or 0)
+#define DYN_THD_PRIO_POS		8
+#define DYN_THD_PRIO_MASK		(0xFF << DYN_THD_PRIO_POS)
+#define DYN_THD_LOG_POS 		0
+#define DYN_THD_LOG_MASK 		(0x01 << DYN_THD_LOG_POS)
+
+// Generic name used if we need to print a deleted dynamic thread
+static char generic_dynamic_thread_name[] = {"Exited dynamic thread"};
+
 static thread_t* _threads_removed_infos[HANDLED_THREADS_LEN] = {NULL};
 static uint8_t _threads_removed[HANDLED_THREADS_LEN] = {0};
 static uint8_t _threads_removed_pos = 0;
@@ -107,7 +123,7 @@ void _increments_fill_pos(void){
  */	
 void removeThread(void* otp){
 #ifdef ENABLE_THREADS_TIMESTAMPS
-	static thread_t *tp = 0;
+	static thread_t *tp = NULL;
 	static thread_t *out = NULL;
 	static uint8_t counter_out = 0;
 	static uint32_t time = 0;
@@ -132,7 +148,15 @@ void removeThread(void* otp){
 		_increments_fill_pos();
 
 		_threads_removed[_threads_removed_pos] = counter_out;
-		_threads_removed_infos[_threads_removed_pos] = out; 
+
+		if(out->p_flags == CH_FLAG_MODE_STATIC){
+			_threads_removed_infos[_threads_removed_pos] = out; 
+
+		}else if(out->p_flags == CH_FLAG_MODE_HEAP || out->p_flags == CH_FLAG_MODE_MPOOL){
+			_threads_removed_infos[_threads_removed_pos] = (thread_t*)	(DYN_THD_REMOVED_MASK 
+														 				| ((out->p_prio << DYN_THD_PRIO_POS) & DYN_THD_PRIO_MASK)
+																		| ((out->log_this_thread << DYN_THD_LOG_POS) & DYN_THD_LOG_MASK));
+		}
 
 		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
 		_threads_removed_count++;
@@ -322,11 +346,24 @@ void printListThreads(BaseSequentialStream *out){
 
 	n = _next_thread_removed_to_delete;
 	for(uint8_t i = 0 ; i < _threads_removed_count ; i++){
-		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
-				_threads_removed[n],
-				_threads_removed_infos[n]->p_prio,
-				_threads_removed_infos[n]->log_this_thread ? "Yes" : "No",
-				_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
+
+		// Case if we have a deleted dynamic thread
+		if( (((uint32_t)_threads_removed_infos[n]) & DYN_THD_REMOVED_MASK) == DYN_THD_REMOVED_MASK ){
+			chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
+					_threads_removed[n],
+					((uint32_t)_threads_removed_infos[n] & DYN_THD_PRIO_MASK) >> DYN_THD_PRIO_POS,
+					(((uint32_t)_threads_removed_infos[n] & DYN_THD_LOG_MASK) >> DYN_THD_LOG_POS) ? "Yes" : "No",
+					generic_dynamic_thread_name); 
+
+		// Case if we have a static deleted thread
+		}else{
+			chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
+					_threads_removed[n],
+					_threads_removed_infos[n]->p_prio,
+					_threads_removed_infos[n]->log_this_thread ? "Yes" : "No",
+					_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
+		}
+
 		n = (n+1) % HANDLED_THREADS_LEN;
 	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */

@@ -885,6 +885,9 @@ if(serial_port_given):
 	readButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_SERIAL))
 	connectionButton.on_clicked(lambda x: toggle_serial(connectionButton))
 
+# Auto select the pan/zoom tool from the toolbar for convenience
+plt.get_current_fig_manager().toolbar.pan()
+
 plt.show()
 
 disconnect_serial()

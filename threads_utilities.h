@@ -93,7 +93,7 @@ void dontLogNextCreatedThreadsTimestamps(void);
  * 					such that the timestamps are equally around the trigger.
  * 
  */	
-void setTriggerTimestamps(void);
+const char* setTriggerTimestamps(const char* trigger_name);
 
 /**     
  * @brief 			Removes the trigger of the timestamps functionality to be in run mode. This means 

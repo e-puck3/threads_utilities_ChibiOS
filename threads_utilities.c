@@ -403,11 +403,12 @@ void printListThreads(BaseSequentialStream *out){
 	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
-
-void setTriggerTimestamps(void){
+const char* setTriggerTimestamps(const char* trigger_name){
 #ifdef ENABLE_THREADS_TIMESTAMPS
+	static const char* name = NULL;
 	if(!_triggered){
 		chSysLock();
+		name = trigger_name;
 		_triggered = true;
 		_trigger_time = chVTGetSystemTimeX();
 		if(!_full && _fill_pos <= THREADS_TIMESTAMPS_LOG_SIZE/2){
@@ -420,7 +421,9 @@ void setTriggerTimestamps(void){
 		}
 		chSysUnlock();
 	}
+	return name;
 #endif /* ENABLE_THREADS_TIMESTAMPS */
+	return NULL;
 }
 
 void resetTriggerTimestamps(void){
@@ -547,8 +550,8 @@ void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *a
         return;
     }
 #ifdef ENABLE_THREADS_TIMESTAMPS
-    setTriggerTimestamps();
-    chprintf(chp, "Trigger set at %7d\r\n", _trigger_time);
+    const char* name = setTriggerTimestamps("Shell command");
+    chprintf(chp, "Trigger set by %s at %7d\r\n",name, _trigger_time);
 #else
 	chprintf(chp, "%s", no_timestamps_error_message);
 #endif /* ENABLE_THREADS_TIMESTAMPS */

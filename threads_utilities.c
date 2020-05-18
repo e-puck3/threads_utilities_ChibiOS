@@ -17,14 +17,34 @@
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
 
-// define by the mask we apply for the timestamps. We have 6 bits for the thread number
+// Defined by the mask we apply for the timestamps. We have 6 bits for the thread number
 // and the thread 0 reserved 
 #define MAX_HANDLED_THREADS	64
 #define HANDLED_THREADS_LEN (MAX_HANDLED_THREADS - 1)
 
+// Whether we automatically log next created threads or not
 static uint8_t logSetting = THREADS_TIMESTAMPS_DEFAULT_LOG;
 
+// max 63 Threads (1-63), 0 means nothing
+// bit 31 to bit 12 = time (20bits -> 17 minutes max)
+// bit 11 to bit 6 	= out thread number (1-63)	
+// bit 5  to bit 0 	= in thread number (1-63)
+#define THREAD_IN_POS		0
+#define THREAD_IN_MASK		(0x3F << THREAD_IN_POS)
+#define THREAD_OUT_POS		6
+#define THREAD_OUT_MASK		(0x3F << THREAD_OUT_POS)
+#define TIME_POS			12
+#define TIME_MASK			(0xFFFFF << TIME_POS)
+// Circular buffer containing the timestamps logs
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+static uint32_t _fill_pos = 0;
+static uint8_t _pause = false;
+static uint8_t _full = false;
+
+// Trigger variables
+static uint8_t _triggered = false;
+static uint32_t _trigger_time = 0;
+static int32_t _fill_remaining = 0;
 
 // Mask used to know if we have a thread_t pointer or infos about a deleted dynamic thread
 // The value 0xFFFFxxxx is a memory zone not used to store variables so if we set this value, then
@@ -42,23 +62,16 @@ static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
 // Generic name used if we need to print a deleted dynamic thread
 static char generic_dynamic_thread_name[] = {"Exited dynamic thread"};
 
+// Circular list that keeps traces of the exited thread which still have timestamps in the logs
 static thread_t* _threads_removed_infos[HANDLED_THREADS_LEN] = {NULL};
 static uint8_t _threads_removed[HANDLED_THREADS_LEN] = {0};
 static uint8_t _threads_removed_pos = 0;
 static uint8_t _next_thread_removed_to_delete = 0;
 static uint8_t _threads_removed_count = 0;
 
-// Simple linked list of the threads alive
+// Simple internal linked list of the threads alive
 static thread_t* first_added_thread = NULL;
 static thread_t* last_added_thread = NULL;
-
-static uint32_t _fill_pos = 0;
-static uint8_t _pause = false;
-static uint8_t _full = false;
-
-static uint8_t _triggered = false;
-static uint32_t _trigger_time = 0;
-static int32_t _fill_remaining = 0;
 
 #else
 static char no_timestamps_error_message[] = {
@@ -67,16 +80,6 @@ static char no_timestamps_error_message[] = {
 };
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 
-// max 63 Threads (1-63), 0 means nothing
-// bit 31 to bit 12 = time (20bits -> 17 minutes max)
-// bit 11 to bit 6 	= out thread number (1-63)	
-// bit 5  to bit 0 	= in thread number (1-63)
-#define THREAD_IN_POS		0
-#define THREAD_IN_MASK		(0x3F << THREAD_IN_POS)
-#define THREAD_OUT_POS		6
-#define THREAD_OUT_MASK		(0x3F << THREAD_OUT_POS)
-#define TIME_POS			12
-#define TIME_MASK			(0xFFFFF << TIME_POS)
 
 /********************               PRIVATE FUNCTIONS              ********************/
 
@@ -118,7 +121,12 @@ void _increments_fill_pos(void){
 
 /********************                CHCONF FUNCTION               ********************/
 
-
+/**     
+ * @brief 			Adds a new thread to the internal thread list
+ * 					To be called by the CH_CFG_THREAD_INIT_HOOK() in chconf.h
+ * 
+ * @param ntp 		Pointer to the new thread to add
+ */	
 void addThread(void* ntp){
 
 	thread_t* tp = (thread_t*) ntp;
@@ -139,10 +147,11 @@ void addThread(void* ntp){
 
 /**
  * @brief 			Saves the exiting thread into the removed thread list to keep trace of the 
- * 					deleted threads for the timestamps functionality.
+ * 					deleted threads for the timestamps functionality. Also removes the thread from the
+ * 					internal thread list.
  * 					To be called by the CH_CFG_THREAD_EXIT_HOOK in chconf.h
  * 
- * @param device 	Pointer to the exiting thread
+ * @param otp 		Pointer to the exiting thread
  */	
 void removeThread(void* otp){
 #ifdef ENABLE_THREADS_TIMESTAMPS
@@ -205,7 +214,8 @@ void removeThread(void* otp){
  * @brief 			Saves the IN and OUT times of each thread to log while the buffers aren't full.
  * 					To be called by the CH_CFG_CONTEXT_SWITCH_HOOK in chconf.h
  * 
- * @param device 	Pointer to the output
+ * @param ntp 		Pointer to the IN thread
+ * @param otp 		Pointer to the OUT thread
  */	
 void fillThreadsTimestamps(void* ntp, void* otp){
 #ifdef ENABLE_THREADS_TIMESTAMPS
@@ -413,7 +423,7 @@ const char* setTriggerTimestamps(const char* trigger_name){
 		_trigger_time = chVTGetSystemTimeX();
 		if(!_full && _fill_pos <= THREADS_TIMESTAMPS_LOG_SIZE/2){
 			// Special case when we trigger before the logs are completely populated and we
-			// have less that half of hte buffer full
+			// have less that half of the buffer full
 			// In this case we fill completely the remaining buffer and not only half of it
 			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE - _fill_pos;
 		}else{

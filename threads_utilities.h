@@ -29,21 +29,21 @@
  * 					The values returned have a relatively big inertia
  * 					because ChibiOS counts the total time used by each thread.
  * 
- * @param device 	Pointer to the output
+ * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printUcUsage(BaseSequentialStream* out);
 
 /**
  * @brief 			Prints the number of threads running
  * 
- * @param device 	Pointer to the output
+ * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printStatThreads(BaseSequentialStream *out);
 
 /**     
  * @brief 			Prints a list of the declared threads
  * 
- * @param device 	Pointer to the output
+ * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printListThreads(BaseSequentialStream *out);
 
@@ -55,7 +55,7 @@ void printListThreads(BaseSequentialStream *out);
  * 					
  * 					Better to call via the USB shell since the python script will send a specific command
  * 
- * @param device 	Pointer to the output
+ * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printTimestampsThread(BaseSequentialStream *out);
 
@@ -89,9 +89,13 @@ void logNextCreatedThreadsTimestamps(void);
 void dontLogNextCreatedThreadsTimestamps(void);
 
 /**     
- * @brief 			Sets the trigger of the timestamps functionality. This means the filling is stopped
- * 					such that the timestamps are equally around the trigger.
- * 
+ * @brief 				Sets the trigger of the timestamps functionality. This means the filling is stopped
+ * 						such that the timestamps are equally around the trigger.
+ * 					
+ * @param trigger_name	Name given for the trigger, for example use __FUNCTION__ to record which function called
+ * 						the trigger.
+ * 						
+ * @return 				Actual name of the trigger. Can be different from the one given as argument if it was already triggered
  */	
 const char* setTriggerTimestamps(const char* trigger_name);
 
@@ -107,31 +111,55 @@ void resetTriggerTimestamps(void);
 /**     
  * @brief 			Shell command to print the threads declared
  * 					Calls printListThreads()
+ * 	
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_list(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Sets the trigger
  * 					Calls setTriggerTimestamps()
+ * 					
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_timestamps_trigger(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Goes into run mode
  * 					Calls resetTriggerTimestamps()
+ * 					
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_timestamps_run(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print the number of threads running
  * 					Calls printTimestampsThread()
+ * 					
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print stats abouts the memory usage of the threads
  * 					Calls printStatThreads()
+ 
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
  * @brief 			Shell command to print usage of MCU time per threads
  * 					Calls printUcUsage()
+ * 					
+ * @param chp 		Pointer to the BaseSequentialStream stream to write to
+ * @param argc 		Number of arguments given when calling this shell command
+ * @param argv 		Array of the arguments given when calling thos shell command
  */	
 void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 

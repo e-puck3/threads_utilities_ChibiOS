@@ -48,6 +48,10 @@ static uint8_t _threads_removed_pos = 0;
 static uint8_t _next_thread_removed_to_delete = 0;
 static uint8_t _threads_removed_count = 0;
 
+// Simple linked list of the threads alive
+static thread_t* first_added_thread = NULL;
+static thread_t* last_added_thread = NULL;
+
 static uint32_t _fill_pos = 0;
 static uint8_t _pause = false;
 static uint8_t _full = false;
@@ -114,6 +118,25 @@ void _increments_fill_pos(void){
 
 /********************                CHCONF FUNCTION               ********************/
 
+
+void addThread(void* ntp){
+
+	thread_t* tp = (thread_t*) ntp;
+	
+	if(first_added_thread == NULL){
+		first_added_thread = tp;
+	}
+
+	tp->log_newer_thread = NULL;
+	tp->log_older_thread = last_added_thread;
+
+	if(tp->log_older_thread != NULL){
+		tp->log_older_thread->log_newer_thread = tp;
+	}
+	last_added_thread = tp;
+
+}
+
 /**
  * @brief 			Saves the exiting thread into the removed thread list to keep trace of the 
  * 					deleted threads for the timestamps functionality.
@@ -130,14 +153,14 @@ void removeThread(void* otp){
 
 	time = chVTGetSystemTimeX();
 
-	tp = ch.rlist.r_newer;
+	tp = first_added_thread;
 	out = (thread_t*) otp;
 	counter_out = 1;
-	while(tp != (thread_t *)&ch.rlist){
+	while(tp != NULL){
 		if(tp == out){
 			break;
 		}
-		tp = tp->p_newer;
+		tp = tp->log_newer_thread;
 		counter_out++;
 	}
 
@@ -160,6 +183,18 @@ void removeThread(void* otp){
 
 		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
 		_threads_removed_count++;
+	}
+
+	if(out->log_older_thread != NULL){
+		out->log_older_thread->log_newer_thread = out->log_newer_thread;
+	}else{
+		first_added_thread = out->log_newer_thread;
+	}
+
+	if(out->log_newer_thread != NULL){
+		out->log_newer_thread->log_older_thread = out->log_older_thread;
+	}else{
+		last_added_thread = out->log_older_thread;
 	}
 #else
 	(void) otp;
@@ -189,13 +224,13 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 	if(_continue_to_fill()){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
-		tp = ch.rlist.r_newer;
+		tp = first_added_thread;
 		counter = 1;
 		counter_in = 0;
 		counter_out = 0;
 		found_in = false;
 		found_out = false;
-		while(tp != (thread_t *)&ch.rlist){
+		while(tp != NULL){
 			if(tp == in){
 				found_in = true;
 				counter_in = counter;
@@ -204,7 +239,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 				found_out = true;
 				counter_out = counter;
 			}
-			tp = tp->p_newer;
+			tp = tp->log_newer_thread;
 			counter++;
 			if(found_in && found_out){
 				break;
@@ -326,7 +361,7 @@ void printListThreads(BaseSequentialStream *out){
 
 	uint16_t n = 1;
 
-	tp = chRegFirstThread();
+	tp = first_added_thread;
 	while(tp != NULL){
 		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
 				n,
@@ -337,7 +372,7 @@ void printListThreads(BaseSequentialStream *out){
 				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 				tp->p_name == NULL ? "NONAME" : tp->p_name); 
-		tp = chRegNextThread(tp);
+		tp = tp->log_newer_thread;
 		n++;
 	}
 

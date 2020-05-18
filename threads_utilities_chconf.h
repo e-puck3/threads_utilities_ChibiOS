@@ -2,11 +2,14 @@
 
 // To be added to CH_CFG_THREAD_EXTRA_FIELDS
 #define TIMESTAMPS_THREAD_EXTRA_FIELDS					                    \
-	uint8_t log_this_thread;
+	uint8_t log_this_thread;												\
+	thread_t* log_newer_thread;												\
+	thread_t* log_older_thread;
 
 // To be added to CH_CFG_THREAD_INIT_HOOK
 #define TIMESTAMPS_THREAD_INIT_HOOK						                    \
-		tp->log_this_thread = getLogSetting();
+		tp->log_this_thread = getLogSetting();								\
+		addThread(tp);
 
 // To be added to CH_CFG_THREAD_EXIT_HOOK
 #define TIMESTAMPS_THREAD_EXIT_HOOK(tp)									    \
@@ -26,6 +29,7 @@ extern "C" {
 uint8_t getLogSetting(void);
 void fillThreadsTimestamps(void* in, void* out);
 void removeThread(void* otp);
+void addThread(void* ntp);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -8,6 +8,7 @@ Table of content
 - [How to add the library to a project](#How-to-add-the-library-to-a-project)
 - [Versions](#versions)
 - [Timestamps functionality](#timestamps-functionality)
+  - [Limitations](#limitations)
   - [Prerequisite C](#prerequisite-c)
   - [How it works](#how-it-works)
   - [Thread logging selection](#thread-logging-selection)
@@ -106,7 +107,14 @@ It's up to you to choose the size of the logs, which one element directly corres
 
 We can then recover these data and show them on a timeline with the provided Python 3 script findable in **/Python/plot_threads_timeline.py**
 
-
+### Limitations
+There are some limitations imposed to keep a relatively small memory footprint :
+- The time written in the timestamps can not exceed 17 minutes. It will loop if this time is exceeded -> the timeline can be wrong.
+- Up to 63 threads can be logged. It will loop if a thread has a bigger number.
+- Up to 64 exited threads data can be kept at the same time. Others deletions will be ignored and the timeline will be wrong. When no more logs of a deleted thread are present, this thread is removed form the exited threads list. This means more than 64 threads can be exited during the execution of the program but only 64 at a time are stored.
+- When a dynamic thread is exited, its name is lost and replaced by *Exited dynamic thread*.
+- A thread is logged or not. This setting should not be changed at runtime but only at the beginning of the thread or before its creation otherwise the timeline will be wrong.
+- The communication with the python script doesn't handle byte loss or byte corruption but it has been tweaked to support slow UART to USB translator for example. Anyway it's possible that it doesn't work correctly with each translator that exists. It's faster and more robust to use a direct USB connection when possible.
 
 ### Prerequisite C
 
@@ -359,7 +367,7 @@ When a thread is exited, a longer red line is drawn at the end of its last times
 ![Exit_threads](Doc/Exit_threads.png)
 
 ##### Trigger
-Finally the trigger is represented by a red line of covering all the threads on the timeline. It has been set on the time 3500 on the example below.
+Finally the trigger is represented by a red line covering all the threads on the timeline. It has been set on the time 3500 on the example below.
 
 ![Trigger](Doc/Trigger.png)
 

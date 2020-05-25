@@ -534,8 +534,7 @@ void printTimestampsThread(BaseSequentialStream *out){
 
 	_pause = false;
 #else
-	chprintf(out, "The thread timestamps functionality is disabled\r\n");
-	chprintf(out, "Please define USE_THREADS_TIMESTAMPS = true in your makefile \r\n");
+	chprintf(chp, "%s", no_timestamps_error_message);
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 

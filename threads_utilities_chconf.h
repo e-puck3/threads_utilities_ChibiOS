@@ -44,6 +44,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+#include "chtypes.h"
 
 uint8_t getLogSetting(void);
 void fillThreadsTimestamps(void* in, void* out);

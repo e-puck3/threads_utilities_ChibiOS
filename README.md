@@ -305,6 +305,8 @@ The python3 script provided is made to connect to the MCU and download the logs 
 
 To use the python script, **python3**, as well as **matplotlib** and **pySerial** should be installed.
 
+It has been tested on **Windows 64bits build 1909**, **Ubuntu 16.04 64 bits** and **MacOS Catalina**.
+
 Then, if the Shell works correctly on the MCU side, you can simply launch the script with the following lines :
  ```
  python3 ./plot_threads_timeline.py ComPort

@@ -343,7 +343,7 @@ def process_threads_timestamps_cmd(lines):
 		print('Bad answer received, see below :')
 		for line in lines:
 			print(NEW_RECEIVED_LINE, line)
-		return 0, None, FUNC_FAILED
+		return 0, FUNC_FAILED
 		
 	counter = None
 	last_time = None

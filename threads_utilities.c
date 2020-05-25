@@ -17,10 +17,7 @@
 // each case of the tabs corresponds to 1 system tick
 #ifdef ENABLE_THREADS_TIMESTAMPS
 
-// Defined by the mask we apply for the timestamps. We have 6 bits for the thread number
-// and the thread 0 reserved 
-#define MAX_HANDLED_THREADS	64
-#define HANDLED_THREADS_LEN (MAX_HANDLED_THREADS - 1)
+#define MAX_REMOVED_THREADS	64
 
 // Whether we automatically log next created threads or not
 static uint8_t logSetting = THREADS_TIMESTAMPS_DEFAULT_LOG;
@@ -63,8 +60,8 @@ static int32_t _fill_remaining = 0;
 static char generic_dynamic_thread_name[] = {"Exited dynamic thread"};
 
 // Circular list that keeps traces of the exited thread which still have timestamps in the logs
-static thread_t* _threads_removed_infos[HANDLED_THREADS_LEN] = {NULL};
-static uint8_t _threads_removed[HANDLED_THREADS_LEN] = {0};
+static thread_t* _threads_removed_infos[MAX_REMOVED_THREADS] = {NULL};
+static uint8_t _threads_removed[MAX_REMOVED_THREADS] = {0};
 static uint8_t _threads_removed_pos = 0;
 static uint8_t _next_thread_removed_to_delete = 0;
 static uint8_t _threads_removed_count = 0;
@@ -175,7 +172,7 @@ void removeThread(void* otp){
 	}
 
 	// Adds the thread to the removed list if we can
-	if(_threads_removed_count < HANDLED_THREADS_LEN){
+	if(_threads_removed_count < MAX_REMOVED_THREADS){
 		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
 								| ((counter_out << THREAD_IN_POS) & THREAD_IN_MASK);
@@ -192,7 +189,7 @@ void removeThread(void* otp){
 																		| ((out->log_this_thread << DYN_THD_LOG_POS) & DYN_THD_LOG_MASK));
 		}
 
-		_threads_removed_pos = (_threads_removed_pos+1) % HANDLED_THREADS_LEN;
+		_threads_removed_pos = (_threads_removed_pos+1) % MAX_REMOVED_THREADS;
 		_threads_removed_count++;
 	}
 
@@ -266,7 +263,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 		if(_full){
 			if(((_threads_log[_fill_pos] & THREAD_OUT_MASK) >> THREAD_OUT_POS) == ((_threads_log[_fill_pos] & THREAD_IN_MASK) >> THREAD_IN_POS)){
 
-				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % HANDLED_THREADS_LEN;
+				_next_thread_removed_to_delete = (_next_thread_removed_to_delete+1) % MAX_REMOVED_THREADS;
 				_threads_removed_count--;
 			}
 		}
@@ -414,7 +411,7 @@ void printListThreads(BaseSequentialStream *out){
 					_threads_removed_infos[n]->p_name == NULL ? "NONAME" : _threads_removed_infos[n]->p_name); 
 		}
 
-		n = (n+1) % HANDLED_THREADS_LEN;
+		n = (n+1) % MAX_REMOVED_THREADS;
 	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }

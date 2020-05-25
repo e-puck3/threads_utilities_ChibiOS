@@ -10,7 +10,9 @@ USE_THREADS_TIMESTAMPS ?= false
 
 # If enabled, it will use 4bytes * THREADS_TIMESTAMPS_LOG_SIZE of memory
 THREADS_TIMESTAMPS_LOG_SIZE ?= 3000
-# 
+
+# Whether all the threads are logged by default. Can then be changed dynamically with 
+# logNextCreatedThreadsTimestamps() and dontLogNextCreatedThreadsTimestamps() in the code
 THREADS_TIMESTAMPS_DEFAULT_LOG ?= false
 
 ifeq ($(USE_THREADS_TIMESTAMPS), true)

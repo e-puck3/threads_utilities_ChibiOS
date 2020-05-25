@@ -13,11 +13,11 @@
  * @source			http://www.chibios.com/forum/viewtopic.php?f=2&t=138&start=10
  * @source2			http://www.chibios.com/forum/viewtopic.php?t=4496
  * @created by  	Eliot Ferragni
- * @last modif		9 april 2020
+ * @last modif		25 may 2020
  */
 
-#ifndef UC_USAGE_H
-#define UC_USAGE_H
+#ifndef THREADS_UTILITIES_H
+#define THREADS_UTILITIES_H
 
 #include "ch.h"
 #include "chprintf.h"
@@ -25,23 +25,30 @@
 /********************                PUBLIC FUNCTIONS              ********************/
 
 /**
- * @brief 			Prints the uC usage on the output specified
+ * @brief 			Prints the uC usage on the specified output.
  * 					The values returned have a relatively big inertia
  * 					because ChibiOS counts the total time used by each thread.
+ * 					(uses the ChibiOS threads registry to print the list)
  * 
  * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printUcUsage(BaseSequentialStream* out);
 
 /**
- * @brief 			Prints the number of threads running
+ * @brief 			Prints the stack usage of the threads to the specified output.
+ * 					The stack usage printed is not exact but it gives a relatively good idea
+ * 					of the real usage.
+ * 					(uses the ChibiOS threads registry to print the list)
  * 
  * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
 void printStatThreads(BaseSequentialStream *out);
 
+/********************          TIMESTAMPS PUBLIC FUNCTIONS         ********************/
+
 /**     
- * @brief 			Prints a list of the declared threads
+ * @brief 			Prints a list of the declared threads.
+ * 					(uses an internal thread list)
  * 
  * @param out 		Pointer to the BaseSequentialStream stream to write to
  */	
@@ -52,6 +59,7 @@ void printListThreads(BaseSequentialStream *out);
  * 					of each running thread that has been recorded by the function fillThreadsTimestamps().
  * 					Made to work in pair with plot_threads_timeline.py to generate a timeline graph which 
  * 					let us visualize when a thread is running.
+ * 					(uses an internal thread list)
  * 					
  * 					Better to call via the USB shell since the python script will send a specific command
  * 
@@ -66,7 +74,7 @@ void printTimestampsThread(BaseSequentialStream *out);
 void logThisThreadTimestamps(void);
 
 /**     
- * @brief 			The thread invocking this functions will no longer be logged in the timestamps functionality
+ * @brief 			The thread invocking this functions will no longer be logged in the timestamps functionality.
  * 					If it was logged before, it will appear as a non logged thread in the python script (the representation is different)
  * 
  */	
@@ -74,7 +82,7 @@ void dontLogThisThreadTimestamps(void);
 
 /**     
  * @brief 			All the following threads to be created will be logged in the timestamps functionnality
- * 					Can be called before chSysInit() to log the main and Idle threads for example
+ * 					Can be called before chSysInit() to log the main and Idle threads for example.
  * 					Works in pair with dontLogNextCreatedThreadsTimestamps() to log some threads but not all
  * 
  */	
@@ -82,7 +90,7 @@ void logNextCreatedThreadsTimestamps(void);
 
 /**     
  * @brief 			All the following threads to be created won't be logged in the timestamps functionality
- * 					Can be called before chSysInit() to not log the main and Idle threads for example
+ * 					Can be called before chSysInit() to not log the main and Idle threads for example.
  * 					Works in pair with logNextCreatedThreadsTimestamps() to log some threads but not all
  * 
  */	
@@ -100,8 +108,8 @@ void dontLogNextCreatedThreadsTimestamps(void);
 const char* setTriggerTimestamps(const char* trigger_name);
 
 /**     
- * @brief 			Removes the trigger of the timestamps functionality to be in run mode. This means 
- * 					the continuous filling works again.
+ * @brief 			Removes the trigger of the timestamps functionality to be in run mode. 
+ * 					This means the continuous filling works again.
  * 
  */	
 void resetTriggerTimestamps(void);
@@ -154,7 +162,7 @@ void cmd_threads_timestamps(BaseSequentialStream *chp, int argc, char *argv[]);
  */	
 void cmd_threads_stat(BaseSequentialStream *chp, int argc, char *argv[]);
 /**     
- * @brief 			Shell command to print usage of MCU time per threads
+ * @brief 			Shell command to print usage of MCU
  * 					Calls printUcUsage()
  * 					
  * @param chp 		Pointer to the BaseSequentialStream stream to write to
@@ -172,4 +180,4 @@ void cmd_threads_uc(BaseSequentialStream *chp, int argc, char *argv[]);
 	{"threads_uc", cmd_threads_uc},					\
 
 
-#endif /* UC_USAGE_H */
+#endif /* THREADS_UTILITIES_H */

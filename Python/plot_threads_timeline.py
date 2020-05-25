@@ -1,10 +1,10 @@
 # File 				: plot_threads_timeline.py 
 # Author 			: Eliot Ferragni
 # Creation date		: 3 april 2020
-# Last modif date	: 17 april 2020
+# Last modif date	: 25 may 2020
 # version			: 1.0
 # Brief				: This script gathers the timestamps of each thread to log on an
-#					  e-puck2 configured to use the threads_timestamp functions
+#					  mcu configured to use the threads_timestamp functions
 #					  in the threads_utilities.c/.h files
 #					  Then it prints them on a timeline in order to let the user visualize 
 #					  how the threads are behaving in the time
@@ -131,14 +131,14 @@ SUBPLOT_ADJ_RIGHT	= 0.97
 SUBPLOT_ADJ_TOP		= 0.96
 SUBPLOT_ADJ_BOTTOM	= 0.11
 
-START_Y_TICKS 				= 10
-SPACING_Y_TICKS 			= 10
-RECT_HEIGHT 				= 10
-RECT_HEIGHT_EXIT 			= 15
-MINIMUM_THREAD_DURATION 	= 1
-VISUAL_WIDTH_TRIGGER		= 5 # no unit
-DIVISION_FACTOR_TICK_STEP 	= 3
-ZOOM_LEVEL_THRESHOLD 		= 8
+START_Y_TICKS 					= 10
+SPACING_Y_TICKS 				= 10
+RECT_HEIGHT 					= 10
+RECT_HEIGHT_EXIT 				= 15
+MINIMUM_THREAD_DURATION 		= 1
+VISUAL_WIDTH_TRIGGER			= 5 # no unit
+SUBDIVISION_FACTOR_TICK_STEP 	= 2
+ZOOM_LEVEL_THRESHOLD 			= 8
 
 # for the extracted values fields
 REC_THREAD_OUT 		= 0
@@ -445,7 +445,7 @@ def process_threads_timestamps_cmd(lines):
 				for i in range(0, len(thread['raw_values']), 1):
 					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
 					# size of an IN or OUT tick (for incomplete data)
-					tick_step = step/DIVISION_FACTOR_TICK_STEP
+					tick_step = step/SUBDIVISION_FACTOR_TICK_STEP
 					# The format for broken_barh needs to be (begin, width)
 					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
@@ -746,12 +746,6 @@ def read_new_timestamps(input_src):
 			# Splits th names into multiple lines to spare space next to the graph
 			threads_name_list.append(thread['name'].replace(' ','\n') + '\nPrio:'+ str(thread['prio']))
 
-	# Setting Y-axis limits 
-	# gnt.set_ylim(0, 30) 
-
-	# # Setting X-axis limits 
-	# gnt.set_xlim(0, 3000) 
-
 	print('New data received, redrawing the timeline')
 
 	gnt.set_title('Threads timeline')
@@ -839,17 +833,6 @@ else:
 	if(len(sys.argv) > 2):
 		print('Too many arguments given. Only the first one will be used')
 	serial_port_given = True
-
-
-# # Sends command "threads_stat"
-# send_command('threads_stat', False)
-# print('Stack usage of the running threads')
-# receive_text(True)
-
-# # Sends command "threads_uc"
-# send_command('threads_uc', False)
-# print('Computation time taken by the running threads')
-# receive_text(True)
 
 # Declaring a figure "gnt" 
 # figsize is in inch

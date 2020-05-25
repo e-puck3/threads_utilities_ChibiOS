@@ -5,7 +5,7 @@
  * @source			http://www.chibios.com/forum/viewtopic.php?f=2&t=138&start=10
  * @source2			http://www.chibios.com/forum/viewtopic.php?t=4496
  * @created by  	Eliot Ferragni
- * @last modif		9 april 2020
+ * @last modif		25 may 2020
  */
 
 #include <stdlib.h>
@@ -162,6 +162,7 @@ void removeThread(void* otp){
 
 	time = chVTGetSystemTimeX();
 
+	// Finds the number of the thread (its place in the list)
 	tp = first_added_thread;
 	out = (thread_t*) otp;
 	counter_out = 1;
@@ -173,6 +174,7 @@ void removeThread(void* otp){
 		counter_out++;
 	}
 
+	// Adds the thread to the removed list if we can
 	if(_threads_removed_count < HANDLED_THREADS_LEN){
 		_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 								| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)
@@ -194,6 +196,7 @@ void removeThread(void* otp){
 		_threads_removed_count++;
 	}
 
+	// Removes the thread from the list
 	if(out->log_older_thread != NULL){
 		out->log_older_thread->log_newer_thread = out->log_newer_thread;
 	}else{
@@ -231,6 +234,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 
 	time = chVTGetSystemTimeX();
 
+	// Finds the number of the threads (their place in the list)
 	if(_continue_to_fill()){
 		in = (thread_t*) ntp;
 		out = (thread_t*) otp;
@@ -267,6 +271,7 @@ void fillThreadsTimestamps(void* ntp, void* otp){
 			}
 		}
 
+		// Creates a record if at least one of the threads need to be logged 
 		if(in->log_this_thread || out->log_this_thread){
 			_threads_log[_fill_pos] = ((time << TIME_POS) & TIME_MASK) 
 										| ((counter_out << THREAD_OUT_POS) & THREAD_OUT_MASK)

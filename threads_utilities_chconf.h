@@ -1,4 +1,23 @@
+/**
+ * @file	threads_utilities_chconf.h
+ * @brief  	Functions to obtain various stats about the threads
+ * 			
+ * 			The timestamps functionality works a bit like what you would expect from an oscilloscope.
+ * 			The IN and OUT times of the threads are recorded continuously in run mode (no trigger set)
+ * 			and when a trigger is set, either by software or by a USB command through the shell,
+ * 			the recording of the IN and OUT is stopped such that we have an equal number of timestamps
+ * 			before and after the trigger.
+ * 			
+ * 			The python3 script "plot_threads_timeline.py" is provided to draw a timeline to visualize the data.
+ * 
+ * @source			http://www.chibios.com/forum/viewtopic.php?f=2&t=138&start=10
+ * @source2			http://www.chibios.com/forum/viewtopic.php?t=4496
+ * @created by  	Eliot Ferragni
+ * @last modif		25 may 2020
+ */
 
+#ifndef THREADS_UTILITIES_CHCONF_H
+#define THREADS_UTILITIES_CHCONF_H
 
 // To be added to CH_CFG_THREAD_EXTRA_FIELDS
 #define TIMESTAMPS_THREAD_EXTRA_FIELDS					                    \
@@ -37,3 +56,5 @@ void addThread(void* ntp);
 
 #undef TIMESTAMPS_INCLUDE
 #endif /* TIMESTAMPS_INCLUDE */
+
+#endif /* THREADS_UTILITIES_CHCONF_H */

@@ -14,6 +14,7 @@ Table of content
   - [Thread logging selection](#thread-logging-selection)
   - [Trigger/Run](#triggerrun)
   - [Threads Timeline tool](#threads-timeline-tool)
+    - [Requirement](#requirement)
     - [Usage](#usage)
     - [Functionalities](#functionalities)
     - [Interpreting the timeline](#interpreting-the-timeline)
@@ -309,13 +310,18 @@ These functions can not be used before the initialization of ChibiOS because the
 ### Threads Timeline tool
 The python3 script provided is made to connect to the MCU and download the logs to draw them on a timeline.
 
+#### Requirement
+To use the python script, **python3**, as well as **matplotlib** and **pySerial** need to be installed.
+
+It has been tested on **Windows 10 64bits build 1909**, **Ubuntu 16.04 64 bits** and **MacOS Catalina** but it can work on other versions. 
+
+However take note the script uses native scripting functionalities from the different OS to open the file prompts windows used to save and read files. This lets the script use the native file prompts windows of the OS instead of some custom python windows. So if one of the following component isn't available on your OS, the file functionalities won't work.
+- **Applescript** for MacOS
+- **Powershell** for Windows
+- **Zenity through bash** for Ubuntu
+
 #### Usage
-
-To use the python script, **python3**, as well as **matplotlib** and **pySerial** should be installed.
-
-It has been tested on **Windows 64bits build 1909**, **Ubuntu 16.04 64 bits** and **MacOS Catalina**.
-
-Then, if the Shell works correctly on the MCU side, you can simply launch the script with the following lines :
+If the Shell works correctly on the MCU side, you can simply launch the script with the following lines :
  ```
  python3 ./plot_threads_timeline.py ComPort
 ```

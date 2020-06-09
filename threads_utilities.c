@@ -125,7 +125,7 @@ void _increments_fill_pos(void){
  * @param ntp 		Pointer to the new thread to add
  */	
 void addThread(void* ntp){
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	thread_t* tp = (thread_t*) ntp;
 	
 	if(first_added_thread == NULL){
@@ -139,7 +139,9 @@ void addThread(void* ntp){
 		tp->log_older_thread->log_newer_thread = tp;
 	}
 	last_added_thread = tp;
-
+#else
+	(void)ntp;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 /**
@@ -372,8 +374,11 @@ void printListThreads(BaseSequentialStream *out){
 	thread_t *tp;
 
 	uint16_t n = 1;
-
+#ifdef ENABLE_THREADS_TIMESTAMPS
 	tp = first_added_thread;
+#else
+	tp = chRegFirstThread();
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 	while(tp != NULL){
 		chprintf(out, "Thread number %2d : Prio = %3d, Log = %3s, Name = %s\r\n",	
 				n,
@@ -383,8 +388,12 @@ void printListThreads(BaseSequentialStream *out){
 #else
 				"No",
 #endif /* ENABLE_THREADS_TIMESTAMPS */
-				tp->p_name == NULL ? "NONAME" : tp->p_name); 
+				tp->p_name == NULL ? "NONAME" : tp->p_name);
+#ifdef ENABLE_THREADS_TIMESTAMPS
 		tp = tp->log_newer_thread;
+#else
+		tp = chRegNextThread(tp);
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 		n++;
 	}
 
@@ -434,8 +443,10 @@ const char* setTriggerTimestamps(const char* trigger_name){
 		chSysUnlock();
 	}
 	return name;
-#endif /* ENABLE_THREADS_TIMESTAMPS */
+#else
+	(void) trigger_name;
 	return NULL;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
 void resetTriggerTimestamps(void){
@@ -531,7 +542,7 @@ void printTimestampsThread(BaseSequentialStream *out){
 
 	_pause = false;
 #else
-	chprintf(chp, "%s", no_timestamps_error_message);
+	chprintf(out, "%s", no_timestamps_error_message);
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 

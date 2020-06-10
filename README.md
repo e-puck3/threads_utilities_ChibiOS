@@ -64,7 +64,7 @@ You would add these lines to your makefile :
 
 
 THDULIB = ../threads_utilities_ChibiOS
-USE_THREADS_TIMESTAMPS = yes
+USE_THREADS_TIMESTAMPS = true
 THREADS_TIMESTAMPS_LOG_SIZE = 3000
 THREADS_TIMESTAMPS_DEFAULT_LOG  =  false
 include $(THDULIB)/threads_utilities.mk

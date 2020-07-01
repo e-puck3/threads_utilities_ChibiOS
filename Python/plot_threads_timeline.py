@@ -275,10 +275,10 @@ def append_thread(thread_list, name, nb, prio, log):
 
 	if(log == 'Yes'):	
 		# Adds a logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'exit_value': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'exit_value': [], 'no_data': []})
 	else:
 		# Adds a non logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'in_values': [],'out_values': [], 'exit_value': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'in_values': [],'out_values': [], 'exit_value': [], 'no_data': []})
 
 
 def process_threads_list_cmd(lines):
@@ -432,9 +432,13 @@ def process_threads_timestamps_cmd(lines):
 
 					thread['values'].append((begin, width))
 
+					# Draws a no data area to show where the first data is on the timeline
+					if(i == 0):
+						thread['no_data'].append((records[0][REC_TIME], begin - records[0][REC_TIME]))
+
 					# Also draw something when we exit a thread
 					if(thread['raw_values'][i+1][RAW_IN_OUT_TYPE] == 'exit'):
-						thread['exit_value'].append((begin + step, width))
+						thread['exit_value'].append((begin + step, records[-1][REC_TIME] - (begin + step)))
 				# Indicates if we have timestamps to draw
 				if(len(thread['values']) > 0):
 					thread['have_values'] = True
@@ -459,7 +463,11 @@ def process_threads_timestamps_cmd(lines):
 					# For incomplete data, exiting a thread is drawn the same as an OUT time
 					# except for the color
 					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'exit'):
-						thread['exit_value'].append((begin - tick_step, tick_step))
+						thread['exit_value'].append((begin - tick_step, records[-1][REC_TIME] - (begin - tick_step)))
+
+					# Draws a no data area to show where the first data is on the timeline
+					if(i == 0):
+						thread['no_data'].append((records[0][REC_TIME], (begin - tick_step) - records[0][REC_TIME]))
 
 				# Indicates if we have timestamps to draw
 				if((len(thread['in_values']) > 0) or (len(thread['out_values']) > 0)):
@@ -781,7 +789,10 @@ def read_new_timestamps(input_src):
 				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green')
 				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red')
 
-			gnt.broken_barh(thread['exit_value'], (y_row + (RECT_HEIGHT - RECT_HEIGHT_EXIT)/2 , RECT_HEIGHT_EXIT), facecolors='red')
+			# Grey area to tell where the first data is
+			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7')
+			# Red area to tell the thread is ended
+			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red')
 			row += 1
 
 	# Draws the first time the trigger bar

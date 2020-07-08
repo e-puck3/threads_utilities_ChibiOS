@@ -467,7 +467,7 @@ def process_threads_timestamps_cmd(lines):
 
 					# Draws a no data area to show where the first data is on the timeline
 					if(i == 0):
-						thread['no_data'].append((records[0][REC_TIME], (begin - tick_step) - records[0][REC_TIME]))
+						thread['no_data'].append((records[0][REC_TIME], begin - records[0][REC_TIME]))
 
 				# Indicates if we have timestamps to draw
 				if((len(thread['in_values']) > 0) or (len(thread['out_values']) > 0)):
@@ -780,6 +780,11 @@ def read_new_timestamps(input_src):
 	for thread in threads:
 		if(thread['have_values']):
 			y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
+			# Grey area to tell where the first data is
+			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7')
+			# Red area to tell the thread is ended
+			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red')
+
 			if(thread['log']):
 				# If de data are complete (aka this thread was logged), we draw the rectangles
 				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
@@ -788,11 +793,6 @@ def read_new_timestamps(input_src):
 				# we draw the IN times in Green and the OUT in RED
 				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green')
 				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red')
-
-			# Grey area to tell where the first data is
-			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7')
-			# Red area to tell the thread is ended
-			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red')
 			row += 1
 
 	# Draws the first time the trigger bar

@@ -140,6 +140,10 @@ VISUAL_WIDTH_TRIGGER			= 5 # no unit
 SUBDIVISION_FACTOR_TICK_STEP 	= 2
 ZOOM_LEVEL_THRESHOLD 			= 8
 
+DRAW_BEHIND 					= 0
+DRAW_MIDDLE 					= 5
+DRAW_FRONT						= 10
+
 # for the extracted values fields
 REC_THREAD_OUT 		= 0
 REC_THREAD_IN		= 1
@@ -494,15 +498,13 @@ def redraw_trigger_bar(x_nb_values_printed):
 		trigger_width = VISUAL_WIDTH_TRIGGER * x_nb_values_printed/(fig.get_figwidth()*WINDOWS_DPI)
 		if(trigger_bar != None):
 			trigger_bar.remove()
-		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red')
+		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red', zorder=DRAW_FRONT)
 	else:
 		if(trigger_bar != None):
 			trigger_bar.remove()
 			trigger_bar = None
 
-# We enable the minor grid only when the zoom is close enough, 
-# otherwise the graph is really slow
-# We also redraw the trigger bar in a way that its visual width is constant
+# We redraw the trigger bar in a way that its visual width is constant
 def on_xlims_change(axes):
 	a=axes.get_xlim()
 	values_number = a[1]-a[0]
@@ -787,12 +789,12 @@ def read_new_timestamps(input_src):
 
 			if(thread['log']):
 				# If de data are complete (aka this thread was logged), we draw the rectangles
-				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
+				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue', zorder=DRAW_MIDDLE)
 			else:
 				# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
 				# we draw the IN times in Green and the OUT in RED
-				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green')
-				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red')
+				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green', zorder=DRAW_MIDDLE)
+				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red', zorder=DRAW_MIDDLE)
 			row += 1
 
 	# Draws the first time the trigger bar

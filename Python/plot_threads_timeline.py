@@ -535,7 +535,7 @@ def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
 	else:
 		auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
 
-	auto_zoom_window = gnt.broken_barh([(x_pos-auto_zoom_window_width/2, auto_zoom_window_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='0.95', zorder=DRAW_BEHIND)
+	auto_zoom_window = gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1,  color='0.95', zorder=DRAW_BEHIND)
 
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
@@ -910,7 +910,7 @@ showAllAx 					= plt.axes([0.405, 0.025, 0.08, 0.04])
 
 loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
-zoomButton 					= Button(zoomAx, 'Auto zoom', color='lightblue', hovercolor='0.7')
+zoomButton 					= Button(zoomAx, 'X Auto zoom', color='lightblue', hovercolor='0.7')
 showAllButton 				= Button(showAllAx, 'Show all data', color='lightblue', hovercolor='0.7')
 
 zoomButton.on_clicked(auto_zoom_data_graph)

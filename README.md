@@ -21,8 +21,8 @@ Table of content
       - [Typical timeline](#typical-timeline)
       - [Time subdivisions](#time-subdivisions)
       - [Non logged threads](#non-logged-threads)
-      - [Exited threads](#exited-threads)
       - [Trigger](#trigger)
+      - [Auto zoom window](#auto-zoom-window)
 - [Shell commands](#shell-commands)
 
 
@@ -210,7 +210,15 @@ static const ShellCommand commands[] = {
 };
 ...
 ```
-3. Don't forget to include ``threads_utilities.h`` in the files that use a **threads_utilities** function.
+
+3. Enable the following features of ChibiOS in your ``chconf.h``:
+  - ``CH_DBG_STATISTICS``
+  - ``CH_DBG_FILL_THREADS``
+  - ``CH_DBG_THREADS_PROFILING``
+
+Also the **classic periodic tick** should be used instead of the **tick-less mode**. This is done by setting ``CH_CFG_ST_TIMEDELTA`` to **0**.
+
+4. Don't forget to include ``threads_utilities.h`` in the files that use a **threads_utilities** function.
 
 ### How it works
 The way the MCU records the logs and the script processes them is made such that the creation or deletion of threads, whether they are dynamic or static is handled.
@@ -328,6 +336,9 @@ If the Shell works correctly on the MCU side, you can simply launch the script w
 
 With ``ComPort`` being the USB com port to which the Shell is connected.
 
+It's possible to launch the script **without** a ``ComPort``. When it's the case, the buttons that are used to send commands over USB are not displayed.
+This lets the possibility to use the script with saved data without the need for a physical device connected to the computer.
+
 Then with the matplotlib window opened, it is possible to use the navigation tools (bottom left) to zoom and move inside the timeline. 
 ``Left`` and ``Right`` arrows act respectively like Undo and Redo buttons for the view and pressing ``x``or ``y`` while zooming changes the zoom selection to respectively zooming only in the **X** or **Y** axis.
 
@@ -338,44 +349,51 @@ The logs work similarly to an oscilloscope. You can press the **Trigger** button
 
 When you want to get the data, you can press the **Get new data** button.
 
-There is also the possibility to save or load the data into/from a ``.txt`` file. The data and the current view will be saved to the file and when a file is opened, the data and the view will be recovered. This file can also be useful to debug since the data written are directly what is sent by the MCU before any processing from the script.
+There is also the possibility to save or load the data into/from a ``.txt`` file. The data and the current view will be saved to the file and when a file is opened, the data and the view are recovered. This file can also be useful to debug since the data written are directly what is sent by the MCU before any processing from the script.
 
 The script will also write messages to the terminal for nearly each action of the user.
 
-Finally, depending on the zoom level, a lot of information are not visible until you zoom in enough to make them drawable by matplotlib.
+Finally, be aware that depending on the zoom level, a lot of information are not visible until you zoom in enough to make them drawable by matplotlib.
 
 #### Interpreting the timeline
 ##### Typical timeline
 
-Here is an example of the type of timeline you could obtain with the script. Of course a lot of data are displayed, it is needed to zoom a lot to begin to see useful information.
+Here is an example of the type of timeline you could obtain with the script. Of course a lot of data are not displayed, it is needed to zoom a lot to begin to see useful information.
 
+In order to spot where the first data of each thread is on the timeline, a grey area is drawn until the first data of each thread. This means no data are present inside a grey area.
+
+When a thread is exited, a red area is drawn from the moment the thread has been exited.
 ![Gui](Doc/Gui.png)
 
 The threads are ordered from bottom to top by priority order and then by creation order. This means the lowest priority threads are on the bottom and for the same priority, a thread below an other has been created before it and etc.
 
 ##### Time subdivisions
 
-Since it's highly possible to have multiple context switches during the same system tick, we can not know the exact duration of a thread before switching to another. To still represent all the switches, the duration width of an active thread is dependent on how many context switches happened during the same system tick. For example on the image below, we can see that between the millisecond 1300 and 1301, we switched 13 times so the width drawn is 1/14 of millisecond. The same between the milliseconds 1301 and 1302 but this time with a width of 1/12 because less switches happened.
-Of course if a thread was used at least one millisecond, then it's duration on the timeline will begin to be more accurately drawn, the limitation being the system tick frequency of ChibiOS.
+Since it's highly possible to have multiple context switches during the same system tick, we can not know the exact duration of a thread before switching to another. To still represent all the switches, the duration width of an active thread is dependent on how many context switches happened during the same system tick. For example on the image below, we can see that between the system tick 1176 and 1177, we switched 11 times so the width drawn is 1/12 of system ticks. The same between the system ticks 1177 and 1178 but this time with a width of 1/6 because less switches happened.
+Of course if a thread was used at least one system tick, then it's duration on the timeline will begin to be more accurately drawn, the limitation being the system tick frequency of ChibiOS.
 
 ![Different duration width](Doc/Different_duration_widths.png)
 
 ##### Non logged threads
-When a thread is not logged, we can still have incomplete data if they switched to or from a logged thread. For these threads, the IN times are drawn in smaller green rectangles and the OUT in red rectangles. This let the user know which threads interacted with the logged threads but without knowing exactly how much time the system was in the non logged thread and if these threads were interrupted by others non logged threads.
+When a thread is not logged, we can still have incomplete data from it if the system switched to or from a logged thread. For these threads, the IN times are drawn in smaller green rectangles and the OUT in red rectangles. This lets the user know which threads interacted with the logged threads but without knowing exactly how much time the system was in the non logged threads and if these threads were interrupted by others non logged threads.
 
 ![Non_logged_threads](Doc/Non_logged_threads.png)
 
-##### Exited threads
-
-Exit_threads
-When a thread is exited, a longer red line is drawn at the end of its last timestamp on the timeline. For example the threads **Thd16** and a dynamic thread are exited on the image below.
-
-![Exit_threads](Doc/Exit_threads.png)
-
 ##### Trigger
-Finally the trigger is represented by a red line covering all the threads on the timeline. It has been set on the time 3500 on the example below.
+The trigger is represented by a red line covering all the threads on the timeline. It has been set on the time 3500 on the example below.
 
 ![Trigger](Doc/Trigger.png)
+
+##### Auto zoom window
+
+Finally, a simple auto zoom feature has been implemented in order to apply instantly the zoom level needed to be able to see the smallest drawn bars of the timeline that are inside the **auto zoom window**. The window's width is dynamically adapted when manually zooming. 
+
+Note that this auto zoom feature is useless if the durations you want to see are longer than one system tick. It is only useful when subdivisions are drawn inside the **auto zoom window**.
+
+It's also possible to hide/show this window if wanted with the dedicated button.
+
+You can see below an example of the **auto zoom window**
+![Auto_zoom_window](Doc/Auto_zoom_window.png)
 
 Shell commands
 --------------

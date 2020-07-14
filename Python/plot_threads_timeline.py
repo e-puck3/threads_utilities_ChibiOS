@@ -143,9 +143,10 @@ AUTO_ZOOM_WINDOW_MAX_WIDTH 		= 20 # time unit
 SUBDIVISION_FACTOR_TICK_STEP 	= 2
 ZOOM_LEVEL_THRESHOLD 			= 8
 
-DRAW_BEHIND 					= 0
-DRAW_MIDDLE 					= 5
-DRAW_FRONT						= 10
+DRAW_BACK 						= 0
+DRAW_MIDDLE1 					= 5
+DRAW_MIDDLE2					= 10
+DRAW_FRONT 						= 15
 
 # for the extracted values fields
 REC_THREAD_OUT 		= 0
@@ -177,6 +178,7 @@ trigger_bar = None
 
 auto_zoom_window_visible = True
 auto_zoom_window = None
+auto_zoom_window_edges = None
 auto_zoom_window_begin = 0
 auto_zoom_window_width = 0
 
@@ -524,12 +526,14 @@ def auto_zoom_data_graph(event):
 
 def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
 	global auto_zoom_window
+	global auto_zoom_window_edges
 	global auto_zoom_window_width
 	global auto_zoom_window_visible
 
 	if(auto_zoom_window_visible):
 		if(auto_zoom_window != None):
 			auto_zoom_window.remove()
+			auto_zoom_window_edges.remove()
 		# Prints an area to show the auto zoom window
 		# Resizes the window in order to never be bigger than one third of the timeline
 		if(AUTO_ZOOM_WINDOW_MAX_WIDTH >= x_nb_values_printed/3):
@@ -537,10 +541,13 @@ def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
 		else:
 			auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
 
-		auto_zoom_window = gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1,  color='0.95', zorder=DRAW_BEHIND)
+		# We need to draw two different objects. One on top of everything for the edges and one behind everything for the infill
+		auto_zoom_window		= gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', color='0.95', zorder=DRAW_BACK)
+		auto_zoom_window_edges 	= gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1, fill=False, zorder=DRAW_FRONT)
 	else:
 		if(auto_zoom_window != None):
 			auto_zoom_window.remove()
+			auto_zoom_window_edges.remove()
 			auto_zoom_window = None
 
 def toggle_auto_zoom_window(button):
@@ -837,7 +844,7 @@ def read_new_timestamps(input_src):
 	gnt.set_title('Threads timeline')
 
 	# Setting labels for x-axis and y-axis 
-	gnt.set_xlabel('Milliseconds since boot')
+	gnt.set_xlabel('System ticks since boot')
 	gnt.set_ylabel('Threads')
 
 	# Setting ticks on y-axis 
@@ -847,7 +854,7 @@ def read_new_timestamps(input_src):
 
 	gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
 	gnt.xaxis.get_major_formatter().set_useOffset(False)
-	gnt.grid(which='major', color='#000000', linestyle='-')
+	gnt.grid(which='major', color='#000000', linestyle='-', zorder=DRAW_FRONT)
 	gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
 
 	# Setting graph attribute 
@@ -859,18 +866,18 @@ def read_new_timestamps(input_src):
 		if(thread['have_values']):
 			y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
 			# Grey area to tell where the first data is
-			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7')
+			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7', alpha=0.5, zorder=DRAW_MIDDLE1)
 			# Red area to tell the thread is ended
-			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red')
+			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red', alpha=0.5, zorder=DRAW_MIDDLE1)
 
 			if(thread['log']):
 				# If de data are complete (aka this thread was logged), we draw the rectangles
-				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue', zorder=DRAW_MIDDLE)
+				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue', zorder=DRAW_MIDDLE2)
 			else:
 				# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
 				# we draw the IN times in Green and the OUT in RED
-				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green', zorder=DRAW_MIDDLE)
-				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red', zorder=DRAW_MIDDLE)
+				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green', zorder=DRAW_MIDDLE2)
+				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red', zorder=DRAW_MIDDLE2)
 			row += 1
 
 	# Draws the first time the trigger bar

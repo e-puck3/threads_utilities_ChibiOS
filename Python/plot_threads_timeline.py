@@ -175,6 +175,7 @@ threads_name_list = []
 trigger_time = None
 trigger_bar = None
 
+auto_zoom_window_visible = True
 auto_zoom_window = None
 auto_zoom_window_begin = 0
 auto_zoom_window_width = 0
@@ -524,18 +525,44 @@ def auto_zoom_data_graph(event):
 def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
 	global auto_zoom_window
 	global auto_zoom_window_width
+	global auto_zoom_window_visible
 
-	if(auto_zoom_window != None):
-		auto_zoom_window.remove()
+	if(auto_zoom_window_visible):
+		if(auto_zoom_window != None):
+			auto_zoom_window.remove()
+		# Prints an area to show the auto zoom window
+		# Resizes the window in order to never be bigger than one third of the timeline
+		if(AUTO_ZOOM_WINDOW_MAX_WIDTH >= x_nb_values_printed/3):
+			auto_zoom_window_width = x_nb_values_printed/3
+		else:
+			auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
 
-	# Prints an area to show the auto zoom window
-	# Resizes the window in order to never be bigger than one third of the timeline
-	if(AUTO_ZOOM_WINDOW_MAX_WIDTH >= x_nb_values_printed/3):
-		auto_zoom_window_width = x_nb_values_printed/3
+		auto_zoom_window = gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1,  color='0.95', zorder=DRAW_BEHIND)
 	else:
-		auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
+		if(auto_zoom_window != None):
+			auto_zoom_window.remove()
+			auto_zoom_window = None
 
-	auto_zoom_window = gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1,  color='0.95', zorder=DRAW_BEHIND)
+def toggle_auto_zoom_window(button):
+	global auto_zoom_window_visible
+
+	xlimits = gnt.axes.get_xlim()
+	ylimits = gnt.axes.get_ylim()
+
+	# Never draws the auto zoom window if we have no data
+	# Updates the button
+	if(len(text_lines_data) > 0):
+		if button.label.get_text() == 'Hide auto zoom window':
+			button.label.set_text('Show auto zoom window')
+			button.color='lightcoral'
+			auto_zoom_window_visible = False
+		else:
+			button.label.set_text('Hide auto zoom window')
+			button.color='lightgreen'
+			auto_zoom_window_visible = True
+
+		redraw_auto_zoom_window(xlimits[1] - xlimits[0], (xlimits[1] + xlimits[0]) / 2)
+
 
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
@@ -850,6 +877,10 @@ def read_new_timestamps(input_src):
 	xlimits = gnt.axes.get_xlim()
 	ylimits = gnt.axes.get_ylim()
 	redraw_trigger_bar(xlimits[1] - xlimits[0])
+	# Then draws the first auto zoom window. Need to take the new limits because the trigger
+	# bar may have changed them
+	xlimits = gnt.axes.get_xlim()
+	ylimits = gnt.axes.get_ylim()
 	redraw_auto_zoom_window(xlimits[1] - xlimits[0], (xlimits[1] + xlimits[0]) / 2)
 
 	# Saves the default position
@@ -908,15 +939,21 @@ saveAx 						= plt.axes([0.20, 0.025, 0.08, 0.04])
 zoomAx 						= plt.axes([0.325, 0.025, 0.08, 0.04])
 showAllAx 					= plt.axes([0.405, 0.025, 0.08, 0.04])
 
+showAutoZoomAx 				= plt.axes([0.325, 0.002, 0.16, 0.02])
+
 loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
-zoomButton 					= Button(zoomAx, 'X Auto zoom', color='lightblue', hovercolor='0.7')
+zoomButton 					= Button(zoomAx, 'Time Auto zoom', color='lightblue', hovercolor='0.7')
 showAllButton 				= Button(showAllAx, 'Show all data', color='lightblue', hovercolor='0.7')
+
+showAutoZoomButton 			= Button(showAutoZoomAx, 'Hide auto zoom window', color='lightgreen', hovercolor='0.7')
 
 zoomButton.on_clicked(auto_zoom_data_graph)
 showAllButton.on_clicked(show_all_data_graph)
 loadButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_FILE))
 saveButton.on_clicked(lambda x: write_timestamps_to_file())
+
+showAutoZoomButton.on_clicked(lambda x: toggle_auto_zoom_window(showAutoZoomButton))
 
 if(serial_port_given):
 	triggerAx             		= plt.axes([0.53, 0.025, 0.1, 0.04])

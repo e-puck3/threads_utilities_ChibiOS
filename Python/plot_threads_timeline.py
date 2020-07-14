@@ -144,14 +144,14 @@ ZOOM_LEVEL_THRESHOLD 			= 8
 REC_THREAD_OUT 		= 0
 REC_THREAD_IN		= 1
 REC_TIME			= 2
-REC_SHIFT 	 		= 3
-REC_NB_OF_SHIFTS 	= 4
+REC_STEP 	 		= 3
+REC_NB_OF_STEPS 	= 4
 
 # for the raw_values field of a thread
 RAW_TIME 			= 0
 RAW_IN_OUT_TYPE		= 1
-RAW_SHIFT_NB		= 2
-RAW_NB_OF_SHIFTS 	= 3
+RAW_STEP_NB			= 2
+RAW_NB_OF_STEPS 	= 3
 
 # input possibilities
 port = None
@@ -359,7 +359,7 @@ def process_threads_timestamps_cmd(lines):
 		if (time != last_time):
 			if(counter != None):
 				for j in range(counter+1):
-					records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+					records[-(1+j)][REC_NB_OF_STEPS] = counter+1
 			counter = 0
 		else:
 			counter += 1 
@@ -369,7 +369,7 @@ def process_threads_timestamps_cmd(lines):
 
 	# Adds the max_counter to the timestamps of the last time (not done in the loop)
 	for j in range(counter+1):
-		records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+		records[-(1+j)][REC_NB_OF_STEPS] = counter+1
 
 	# Dispatches the records to the correct threads
 	# Part where we simulate the deletion of the thread to be correct with the threads numbers
@@ -377,21 +377,21 @@ def process_threads_timestamps_cmd(lines):
 		thread_out 	= record[REC_THREAD_OUT]
 		thread_in 	= record[REC_THREAD_IN]
 		time 		= record[REC_TIME]
-		shift 		= record[REC_SHIFT]
-		nb_of_shifts = record[REC_NB_OF_SHIFTS]
+		step 		= record[REC_STEP]
+		nb_of_steps = record[REC_NB_OF_STEPS]
 
 		# A thread has been deleted
 		# We simulate the same to be coherent with the numbering of the timestamps
 		if(thread_out == thread_in):
 			deleted_threads.append(threads.pop(thread_out-1))
-			deleted_threads[-1]['raw_values'].append((time, 'exit', shift, nb_of_shifts))
+			deleted_threads[-1]['raw_values'].append((time, 'exit', step, nb_of_steps))
 		else:
 			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
 			# -> ignores the OUT because already written as an EXIT previously
 			if(thread_out != 0):
-				threads[thread_out-1]['raw_values'].append((time, 'out', shift, nb_of_shifts))
+				threads[thread_out-1]['raw_values'].append((time, 'out', step, nb_of_steps))
 
-			threads[thread_in-1]['raw_values'].append((time, 'in', shift, nb_of_shifts))
+			threads[thread_in-1]['raw_values'].append((time, 'in', step, nb_of_steps))
 
 	# Now that every timestamps are with their respective threads, we put every threads together
 	# again in the same list for the rest of the code
@@ -421,9 +421,9 @@ def process_threads_timestamps_cmd(lines):
 
 				# Adds the values by pair to the thread
 				for i in range(0, len(thread['raw_values']), 2):
-					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
+					step = 1/thread['raw_values'][i][RAW_NB_OF_STEPS]
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					shift = thread['raw_values'][i][RAW_STEP_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 					width = thread['raw_values'][i+1][RAW_TIME] - thread['raw_values'][i][RAW_TIME] - shift
 					
@@ -447,11 +447,11 @@ def process_threads_timestamps_cmd(lines):
 			else:
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
-					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
+					step = 1/thread['raw_values'][i][RAW_NB_OF_STEPS]
 					# size of an IN or OUT tick (for incomplete data)
 					tick_step = step/SUBDIVISION_FACTOR_TICK_STEP
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					shift = thread['raw_values'][i][RAW_STEP_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 
 					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):

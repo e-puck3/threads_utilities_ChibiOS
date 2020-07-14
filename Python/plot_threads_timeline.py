@@ -137,6 +137,9 @@ RECT_HEIGHT 					= 10
 RECT_HEIGHT_EXIT 				= 15
 MINIMUM_THREAD_DURATION 		= 1
 VISUAL_WIDTH_TRIGGER			= 5 # no unit
+VISUAL_MINIMUM_WIDTH_AUTO_ZOOM  = 260 # the bigger this number is, the smaller the smallest bars appear in auto zoom
+MINIMUM_NB_OF_STEPS				= 2
+AUTO_ZOOM_WINDOW_MAX_WIDTH 		= 20 # time unit
 SUBDIVISION_FACTOR_TICK_STEP 	= 2
 ZOOM_LEVEL_THRESHOLD 			= 8
 
@@ -164,12 +167,17 @@ READ_FROM_SERIAL = 0
 READ_FROM_FILE = 1
 
 default_graph_pos = [0, 1, 0, 1]
+records = []
 
 threads = []
 deleted_threads = []
 threads_name_list = []
 trigger_time = None
 trigger_bar = None
+
+auto_zoom_window = None
+auto_zoom_window_begin = 0
+auto_zoom_window_width = 0
 
 text_lines_list = []
 text_lines_data = []
@@ -326,6 +334,8 @@ def process_threads_list_cmd(lines):
 
 
 def process_threads_timestamps_cmd(lines):
+
+	global records
 	# What we should receive (one more line if the trigger mode is enabled) :
 	# line 0 			: threads_timestamps
 	# (line 1)			: Triggered at xxxxxxx
@@ -351,7 +361,6 @@ def process_threads_timestamps_cmd(lines):
 		
 	counter = None
 	last_time = None
-	records = []
 	# A first process of the records to count how many subdivisions we have per timestamp
 	for i in range(first_data_line,len(lines)-1):
 		time 		= int(lines[i][len('From xx to xx at '):])
@@ -491,6 +500,43 @@ def show_all_data_graph(event):
 	plt.draw()
 	print('Now showing all data')
 
+def auto_zoom_data_graph(event):
+	a=gnt.axes.get_xlim()
+	actual_x_pos = (a[1] + a[0]) / 2
+
+	window_begin = actual_x_pos - auto_zoom_window_width/2
+	window_end = actual_x_pos + auto_zoom_window_width/2
+
+	# Searches for the maximum number of steps present inside the auto zoom window
+	# This defines the zoom level in order to show correctly the smallest bars present
+	number_of_steps = MINIMUM_NB_OF_STEPS
+	for record in records:
+		if record[REC_TIME] <= window_end and record[REC_TIME] >= window_begin:
+			if record[REC_NB_OF_STEPS] > number_of_steps:
+				number_of_steps = record[REC_NB_OF_STEPS]
+
+	half_visual_auto_zoom_area = VISUAL_MINIMUM_WIDTH_AUTO_ZOOM / number_of_steps / 2
+
+	gnt.axes.set_xlim(actual_x_pos-half_visual_auto_zoom_area, actual_x_pos+half_visual_auto_zoom_area)
+	plt.draw()
+	print('Auto zoom done')
+
+def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
+	global auto_zoom_window
+	global auto_zoom_window_width
+
+	if(auto_zoom_window != None):
+		auto_zoom_window.remove()
+
+	# Prints an area to show the auto zoom window
+	# Resizes the window in order to never be bigger than one third of the timeline
+	if(AUTO_ZOOM_WINDOW_MAX_WIDTH >= x_nb_values_printed/3):
+		auto_zoom_window_width = x_nb_values_printed/3
+	else:
+		auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
+
+	auto_zoom_window = gnt.broken_barh([(x_pos-auto_zoom_window_width/2, auto_zoom_window_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='0.95', zorder=DRAW_BEHIND)
+
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
 	# Redraws the trigger only if we have one value
@@ -507,9 +553,10 @@ def redraw_trigger_bar(x_nb_values_printed):
 # We redraw the trigger bar in a way that its visual width is constant
 def on_xlims_change(axes):
 	a=axes.get_xlim()
-	values_number = a[1]-a[0]
-
-	redraw_trigger_bar(values_number)
+	nb_values_printed = a[1]-a[0]
+	actual_x_pos = (a[1] + a[0]) / 2
+	redraw_trigger_bar(nb_values_printed)
+	redraw_auto_zoom_window(nb_values_printed, actual_x_pos)
 
 # Only for MacOS
 def exec_applescript(script):
@@ -700,9 +747,11 @@ def read_new_timestamps(input_src):
 	global text_lines_data
 	global serial_connected
 	global default_graph_pos
+	global records
 
 	threads.clear()
 	deleted_threads.clear()
+	records.clear()
 
 	if(input_src == READ_FROM_SERIAL):
 
@@ -801,6 +850,7 @@ def read_new_timestamps(input_src):
 	xlimits = gnt.axes.get_xlim()
 	ylimits = gnt.axes.get_ylim()
 	redraw_trigger_bar(xlimits[1] - xlimits[0])
+	redraw_auto_zoom_window(xlimits[1] - xlimits[0], (xlimits[1] + xlimits[0]) / 2)
 
 	# Saves the default position
 	default_graph_pos = [xlimits[0], xlimits[1], ylimits[0], ylimits[1]]
@@ -853,21 +903,24 @@ fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DP
 
 plt.subplots_adjust(left = SUBPLOT_ADJ_LEFT, right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP, bottom = SUBPLOT_ADJ_BOTTOM)
 
-loadAx 						= plt.axes([0.12, 0.025, 0.1, 0.04])
-saveAx 						= plt.axes([0.22, 0.025, 0.1, 0.04])
-showAllAx 					= plt.axes([0.32, 0.025, 0.1, 0.04])
+loadAx 						= plt.axes([0.12, 0.025, 0.08, 0.04])
+saveAx 						= plt.axes([0.20, 0.025, 0.08, 0.04])
+zoomAx 						= plt.axes([0.325, 0.025, 0.08, 0.04])
+showAllAx 					= plt.axes([0.405, 0.025, 0.08, 0.04])
 
 loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
+zoomButton 					= Button(zoomAx, 'Auto zoom', color='lightblue', hovercolor='0.7')
 showAllButton 				= Button(showAllAx, 'Show all data', color='lightblue', hovercolor='0.7')
 
+zoomButton.on_clicked(auto_zoom_data_graph)
 showAllButton.on_clicked(show_all_data_graph)
 loadButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_FILE))
 saveButton.on_clicked(lambda x: write_timestamps_to_file())
 
 if(serial_port_given):
-	triggerAx             		= plt.axes([0.445, 0.025, 0.1, 0.04])
-	runAx             			= plt.axes([0.545, 0.025, 0.1, 0.04])
+	triggerAx             		= plt.axes([0.53, 0.025, 0.1, 0.04])
+	runAx             			= plt.axes([0.63, 0.025, 0.1, 0.04])
 	readAx             			= plt.axes([0.77, 0.025, 0.1, 0.04])
 	connectionAx 				= plt.axes([0.87, 0.025, 0.1, 0.04])
 

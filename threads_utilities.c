@@ -424,11 +424,11 @@ void printListThreads(BaseSequentialStream *out){
 	}
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
-const char* setTriggerTimestamps(const char* trigger_name){
+
+const char* setTriggerTimestampsI(const char* trigger_name){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	static const char* name = NULL;
 	if(!_triggered){
-		chSysLock();
 		name = trigger_name;
 		_triggered = true;
 		_trigger_time = chVTGetSystemTimeX();
@@ -440,7 +440,6 @@ const char* setTriggerTimestamps(const char* trigger_name){
 		}else{
 			_fill_remaining = THREADS_TIMESTAMPS_LOG_SIZE/2;
 		}
-		chSysUnlock();
 	}
 	return name;
 #else
@@ -449,10 +448,22 @@ const char* setTriggerTimestamps(const char* trigger_name){
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 
-void resetTriggerTimestamps(void){
+const char* setTriggerTimestamps(const char* trigger_name){
+#ifdef ENABLE_THREADS_TIMESTAMPS
+	const char* name = NULL;
+	chSysLock();
+	name = setTriggerTimestampsI(trigger_name);
+	chSysUnlock();
+	return name;
+#else
+	(void) trigger_name;
+	return NULL;
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+}
+
+void resetTriggerTimestampsI(void){
 #ifdef ENABLE_THREADS_TIMESTAMPS
 	if(_triggered){
-		chSysLock();
 		_triggered = false;
 		_trigger_time = 0;
 		_fill_remaining = 0;
@@ -467,8 +478,15 @@ void resetTriggerTimestamps(void){
 		_next_thread_removed_to_delete = 0;
 		_threads_removed_count = 0;
 
-		chSysUnlock();
 	}
+#endif /* ENABLE_THREADS_TIMESTAMPS */
+}
+
+void resetTriggerTimestamps(void){
+#ifdef ENABLE_THREADS_TIMESTAMPS
+	chSysLock();
+	resetTriggerTimestampsI();
+	chSysUnlock();
 #endif /* ENABLE_THREADS_TIMESTAMPS */
 }
 

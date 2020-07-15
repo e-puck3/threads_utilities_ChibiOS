@@ -137,21 +137,29 @@ RECT_HEIGHT 					= 10
 RECT_HEIGHT_EXIT 				= 15
 MINIMUM_THREAD_DURATION 		= 1
 VISUAL_WIDTH_TRIGGER			= 5 # no unit
+VISUAL_MINIMUM_WIDTH_AUTO_ZOOM  = 260 # the bigger this number is, the smaller the smallest bars appear in auto zoom
+MINIMUM_NB_OF_STEPS				= 2
+AUTO_ZOOM_WINDOW_MAX_WIDTH 		= 20 # time unit
 SUBDIVISION_FACTOR_TICK_STEP 	= 2
 ZOOM_LEVEL_THRESHOLD 			= 8
+
+DRAW_BACK 						= 0
+DRAW_MIDDLE1 					= 5
+DRAW_MIDDLE2					= 10
+DRAW_FRONT 						= 15
 
 # for the extracted values fields
 REC_THREAD_OUT 		= 0
 REC_THREAD_IN		= 1
 REC_TIME			= 2
-REC_SHIFT 	 		= 3
-REC_NB_OF_SHIFTS 	= 4
+REC_STEP 	 		= 3
+REC_NB_OF_STEPS 	= 4
 
 # for the raw_values field of a thread
 RAW_TIME 			= 0
 RAW_IN_OUT_TYPE		= 1
-RAW_SHIFT_NB		= 2
-RAW_NB_OF_SHIFTS 	= 3
+RAW_STEP_NB			= 2
+RAW_NB_OF_STEPS 	= 3
 
 # input possibilities
 port = None
@@ -160,12 +168,19 @@ READ_FROM_SERIAL = 0
 READ_FROM_FILE = 1
 
 default_graph_pos = [0, 1, 0, 1]
+records = []
 
 threads = []
 deleted_threads = []
 threads_name_list = []
 trigger_time = None
 trigger_bar = None
+
+auto_zoom_window_visible = True
+auto_zoom_window = None
+auto_zoom_window_edges = None
+auto_zoom_window_begin = 0
+auto_zoom_window_width = 0
 
 text_lines_list = []
 text_lines_data = []
@@ -275,10 +290,10 @@ def append_thread(thread_list, name, nb, prio, log):
 
 	if(log == 'Yes'):	
 		# Adds a logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'exit_value': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': True, 'raw_values': [],'have_values': False, 'values': [], 'exit_value': [], 'no_data': []})
 	else:
 		# Adds a non logged thread to the threads list
-		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'in_values': [],'out_values': [], 'exit_value': []})
+		thread_list.append({'name': name,'nb': nb,'prio': prio,'log': False, 'raw_values': [],'have_values': False, 'in_values': [],'out_values': [], 'exit_value': [], 'no_data': []})
 
 
 def process_threads_list_cmd(lines):
@@ -322,6 +337,8 @@ def process_threads_list_cmd(lines):
 
 
 def process_threads_timestamps_cmd(lines):
+
+	global records
 	# What we should receive (one more line if the trigger mode is enabled) :
 	# line 0 			: threads_timestamps
 	# (line 1)			: Triggered at xxxxxxx
@@ -347,7 +364,6 @@ def process_threads_timestamps_cmd(lines):
 		
 	counter = None
 	last_time = None
-	records = []
 	# A first process of the records to count how many subdivisions we have per timestamp
 	for i in range(first_data_line,len(lines)-1):
 		time 		= int(lines[i][len('From xx to xx at '):])
@@ -359,7 +375,7 @@ def process_threads_timestamps_cmd(lines):
 		if (time != last_time):
 			if(counter != None):
 				for j in range(counter+1):
-					records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+					records[-(1+j)][REC_NB_OF_STEPS] = counter+1
 			counter = 0
 		else:
 			counter += 1 
@@ -369,7 +385,7 @@ def process_threads_timestamps_cmd(lines):
 
 	# Adds the max_counter to the timestamps of the last time (not done in the loop)
 	for j in range(counter+1):
-		records[-(1+j)][REC_NB_OF_SHIFTS] = counter+1
+		records[-(1+j)][REC_NB_OF_STEPS] = counter+1
 
 	# Dispatches the records to the correct threads
 	# Part where we simulate the deletion of the thread to be correct with the threads numbers
@@ -377,21 +393,21 @@ def process_threads_timestamps_cmd(lines):
 		thread_out 	= record[REC_THREAD_OUT]
 		thread_in 	= record[REC_THREAD_IN]
 		time 		= record[REC_TIME]
-		shift 		= record[REC_SHIFT]
-		nb_of_shifts = record[REC_NB_OF_SHIFTS]
+		step 		= record[REC_STEP]
+		nb_of_steps = record[REC_NB_OF_STEPS]
 
 		# A thread has been deleted
 		# We simulate the same to be coherent with the numbering of the timestamps
 		if(thread_out == thread_in):
 			deleted_threads.append(threads.pop(thread_out-1))
-			deleted_threads[-1]['raw_values'].append((time, 'exit', shift, nb_of_shifts))
+			deleted_threads[-1]['raw_values'].append((time, 'exit', step, nb_of_steps))
 		else:
 			# The line after a thread deletion contains a 0 because the out thread doesn't exist anymore
 			# -> ignores the OUT because already written as an EXIT previously
 			if(thread_out != 0):
-				threads[thread_out-1]['raw_values'].append((time, 'out', shift, nb_of_shifts))
+				threads[thread_out-1]['raw_values'].append((time, 'out', step, nb_of_steps))
 
-			threads[thread_in-1]['raw_values'].append((time, 'in', shift, nb_of_shifts))
+			threads[thread_in-1]['raw_values'].append((time, 'in', step, nb_of_steps))
 
 	# Now that every timestamps are with their respective threads, we put every threads together
 	# again in the same list for the rest of the code
@@ -421,9 +437,9 @@ def process_threads_timestamps_cmd(lines):
 
 				# Adds the values by pair to the thread
 				for i in range(0, len(thread['raw_values']), 2):
-					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
+					step = 1/thread['raw_values'][i][RAW_NB_OF_STEPS]
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					shift = thread['raw_values'][i][RAW_STEP_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 					width = thread['raw_values'][i+1][RAW_TIME] - thread['raw_values'][i][RAW_TIME] - shift
 					
@@ -432,9 +448,13 @@ def process_threads_timestamps_cmd(lines):
 
 					thread['values'].append((begin, width))
 
+					# Draws a no data area to show where the first data is on the timeline
+					if(i == 0):
+						thread['no_data'].append((records[0][REC_TIME], begin - records[0][REC_TIME]))
+
 					# Also draw something when we exit a thread
 					if(thread['raw_values'][i+1][RAW_IN_OUT_TYPE] == 'exit'):
-						thread['exit_value'].append((begin + step, width))
+						thread['exit_value'].append((begin + step, records[-1][REC_TIME] - (begin + step)))
 				# Indicates if we have timestamps to draw
 				if(len(thread['values']) > 0):
 					thread['have_values'] = True
@@ -443,11 +463,11 @@ def process_threads_timestamps_cmd(lines):
 			else:
 				# Adds one by one the incomplete values
 				for i in range(0, len(thread['raw_values']), 1):
-					step = 1/thread['raw_values'][i][RAW_NB_OF_SHIFTS]
+					step = 1/thread['raw_values'][i][RAW_NB_OF_STEPS]
 					# size of an IN or OUT tick (for incomplete data)
 					tick_step = step/SUBDIVISION_FACTOR_TICK_STEP
 					# The format for broken_barh needs to be (begin, width)
-					shift = thread['raw_values'][i][RAW_SHIFT_NB] * step
+					shift = thread['raw_values'][i][RAW_STEP_NB] * step
 					begin = thread['raw_values'][i][RAW_TIME] + shift
 
 					if(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'in'):
@@ -459,7 +479,11 @@ def process_threads_timestamps_cmd(lines):
 					# For incomplete data, exiting a thread is drawn the same as an OUT time
 					# except for the color
 					elif(thread['raw_values'][i][RAW_IN_OUT_TYPE] == 'exit'):
-						thread['exit_value'].append((begin - tick_step, tick_step))
+						thread['exit_value'].append((begin - tick_step, records[-1][REC_TIME] - (begin - tick_step)))
+
+					# Draws a no data area to show where the first data is on the timeline
+					if(i == 0):
+						thread['no_data'].append((records[0][REC_TIME], begin - records[0][REC_TIME]))
 
 				# Indicates if we have timestamps to draw
 				if((len(thread['in_values']) > 0) or (len(thread['out_values']) > 0)):
@@ -479,6 +503,75 @@ def show_all_data_graph(event):
 	plt.draw()
 	print('Now showing all data')
 
+def auto_zoom_data_graph(event):
+	a=gnt.axes.get_xlim()
+	actual_x_pos = (a[1] + a[0]) / 2
+
+	window_begin = actual_x_pos - auto_zoom_window_width/2
+	window_end = actual_x_pos + auto_zoom_window_width/2
+
+	# Searches for the maximum number of steps present inside the auto zoom window
+	# This defines the zoom level in order to show correctly the smallest bars present
+	number_of_steps = MINIMUM_NB_OF_STEPS
+	for record in records:
+		if record[REC_TIME] <= window_end and record[REC_TIME] >= window_begin:
+			if record[REC_NB_OF_STEPS] > number_of_steps:
+				number_of_steps = record[REC_NB_OF_STEPS]
+
+	half_visual_auto_zoom_area = VISUAL_MINIMUM_WIDTH_AUTO_ZOOM / number_of_steps / 2
+
+	gnt.axes.set_xlim(actual_x_pos-half_visual_auto_zoom_area, actual_x_pos+half_visual_auto_zoom_area)
+	plt.draw()
+	print('Auto zoom done')
+
+def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
+	global auto_zoom_window
+	global auto_zoom_window_edges
+	global auto_zoom_window_width
+	global auto_zoom_window_visible
+
+	if(auto_zoom_window_visible):
+		if(auto_zoom_window != None):
+			auto_zoom_window.remove()
+			auto_zoom_window_edges.remove()
+		# Prints an area to show the auto zoom window
+		# Resizes the window in order to never be bigger than one third of the timeline
+		auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
+		if(auto_zoom_window_width >= x_nb_values_printed/3):
+			auto_zoom_window_width = x_nb_values_printed/3
+		elif(auto_zoom_window_width < x_nb_values_printed/12):
+			auto_zoom_window_width = x_nb_values_printed/12
+
+		# We need to draw two different objects. One on top of everything for the edges and one behind everything for the infill
+		auto_zoom_window		= gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', color='0.95', zorder=DRAW_BACK)
+		auto_zoom_window_edges 	= gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', edgecolor='0', linewidth=1, fill=False, zorder=DRAW_FRONT)
+	else:
+		if(auto_zoom_window != None):
+			auto_zoom_window.remove()
+			auto_zoom_window_edges.remove()
+			auto_zoom_window = None
+
+def toggle_auto_zoom_window(button):
+	global auto_zoom_window_visible
+
+	xlimits = gnt.axes.get_xlim()
+	ylimits = gnt.axes.get_ylim()
+
+	# Never draws the auto zoom window if we have no data
+	# Updates the button
+	if(len(text_lines_data) > 0):
+		if button.label.get_text() == 'Hide auto zoom window':
+			button.label.set_text('Show auto zoom window')
+			button.color='lightcoral'
+			auto_zoom_window_visible = False
+		else:
+			button.label.set_text('Hide auto zoom window')
+			button.color='lightgreen'
+			auto_zoom_window_visible = True
+
+		redraw_auto_zoom_window(xlimits[1] - xlimits[0], (xlimits[1] + xlimits[0]) / 2)
+
+
 def redraw_trigger_bar(x_nb_values_printed):
 	global trigger_bar
 	# Redraws the trigger only if we have one value
@@ -486,20 +579,19 @@ def redraw_trigger_bar(x_nb_values_printed):
 		trigger_width = VISUAL_WIDTH_TRIGGER * x_nb_values_printed/(fig.get_figwidth()*WINDOWS_DPI)
 		if(trigger_bar != None):
 			trigger_bar.remove()
-		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red')
+		trigger_bar = gnt.broken_barh([(trigger_time - trigger_width/2, trigger_width)], (0, (len(threads_name_list)+1)*SPACING_Y_TICKS), facecolors='red', zorder=DRAW_FRONT)
 	else:
 		if(trigger_bar != None):
 			trigger_bar.remove()
 			trigger_bar = None
 
-# We enable the minor grid only when the zoom is close enough, 
-# otherwise the graph is really slow
-# We also redraw the trigger bar in a way that its visual width is constant
+# We redraw the trigger bar in a way that its visual width is constant
 def on_xlims_change(axes):
 	a=axes.get_xlim()
-	values_number = a[1]-a[0]
-
-	redraw_trigger_bar(values_number)
+	nb_values_printed = a[1]-a[0]
+	actual_x_pos = (a[1] + a[0]) / 2
+	redraw_trigger_bar(nb_values_printed)
+	redraw_auto_zoom_window(nb_values_printed, actual_x_pos)
 
 # Only for MacOS
 def exec_applescript(script):
@@ -690,9 +782,11 @@ def read_new_timestamps(input_src):
 	global text_lines_data
 	global serial_connected
 	global default_graph_pos
+	global records
 
 	threads.clear()
 	deleted_threads.clear()
+	records.clear()
 
 	if(input_src == READ_FROM_SERIAL):
 
@@ -751,7 +845,7 @@ def read_new_timestamps(input_src):
 	gnt.set_title('Threads timeline')
 
 	# Setting labels for x-axis and y-axis 
-	gnt.set_xlabel('Milliseconds since boot')
+	gnt.set_xlabel('System ticks since boot')
 	gnt.set_ylabel('Threads')
 
 	# Setting ticks on y-axis 
@@ -761,7 +855,7 @@ def read_new_timestamps(input_src):
 
 	gnt.xaxis.set_major_locator(tick.MaxNLocator(integer=True, min_n_ticks=0))
 	gnt.xaxis.get_major_formatter().set_useOffset(False)
-	gnt.grid(which='major', color='#000000', linestyle='-')
+	gnt.grid(which='major', color='#000000', linestyle='-', zorder=DRAW_FRONT)
 	gnt.grid(which='minor', color='#CCCCCC', linestyle='--')
 
 	# Setting graph attribute 
@@ -772,22 +866,30 @@ def read_new_timestamps(input_src):
 	for thread in threads:
 		if(thread['have_values']):
 			y_row = (START_Y_TICKS +  SPACING_Y_TICKS * row) - RECT_HEIGHT/2
+			# Grey area to tell where the first data is
+			gnt.broken_barh(thread['no_data'], (y_row, RECT_HEIGHT), facecolors='0.7', alpha=0.5, zorder=DRAW_MIDDLE1)
+			# Red area to tell the thread is ended
+			gnt.broken_barh(thread['exit_value'], (y_row, RECT_HEIGHT), facecolors='red', alpha=0.5, zorder=DRAW_MIDDLE1)
+
 			if(thread['log']):
 				# If de data are complete (aka this thread was logged), we draw the rectangles
-				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue')
+				gnt.broken_barh(thread['values'], (y_row, RECT_HEIGHT), facecolors='blue', zorder=DRAW_MIDDLE2)
 			else:
 				# If the data are incomplete (IN and OUT times are missing because this thread wasn't logged),
 				# we draw the IN times in Green and the OUT in RED
-				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green')
-				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red')
-
-			gnt.broken_barh(thread['exit_value'], (y_row + (RECT_HEIGHT - RECT_HEIGHT_EXIT)/2 , RECT_HEIGHT_EXIT), facecolors='red')
+				gnt.broken_barh(thread['in_values'], (y_row, RECT_HEIGHT), facecolors='green', zorder=DRAW_MIDDLE2)
+				gnt.broken_barh(thread['out_values'], (y_row, RECT_HEIGHT), facecolors='red', zorder=DRAW_MIDDLE2)
 			row += 1
 
 	# Draws the first time the trigger bar
 	xlimits = gnt.axes.get_xlim()
 	ylimits = gnt.axes.get_ylim()
 	redraw_trigger_bar(xlimits[1] - xlimits[0])
+	# Then draws the first auto zoom window. Need to take the new limits because the trigger
+	# bar may have changed them
+	xlimits = gnt.axes.get_xlim()
+	ylimits = gnt.axes.get_ylim()
+	redraw_auto_zoom_window(xlimits[1] - xlimits[0], (xlimits[1] + xlimits[0]) / 2)
 
 	# Saves the default position
 	default_graph_pos = [xlimits[0], xlimits[1], ylimits[0], ylimits[1]]
@@ -840,21 +942,30 @@ fig, gnt = plt.subplots(figsize=(WINDOWS_SIZE_X, WINDOWS_SIZE_Y), dpi=WINDOWS_DP
 
 plt.subplots_adjust(left = SUBPLOT_ADJ_LEFT, right=SUBPLOT_ADJ_RIGHT, top=SUBPLOT_ADJ_TOP, bottom = SUBPLOT_ADJ_BOTTOM)
 
-loadAx 						= plt.axes([0.12, 0.025, 0.1, 0.04])
-saveAx 						= plt.axes([0.22, 0.025, 0.1, 0.04])
-showAllAx 					= plt.axes([0.32, 0.025, 0.1, 0.04])
+loadAx 						= plt.axes([0.12, 0.025, 0.08, 0.04])
+saveAx 						= plt.axes([0.20, 0.025, 0.08, 0.04])
+zoomAx 						= plt.axes([0.325, 0.025, 0.08, 0.04])
+showAllAx 					= plt.axes([0.405, 0.025, 0.08, 0.04])
+
+showAutoZoomAx 				= plt.axes([0.325, 0.002, 0.16, 0.02])
 
 loadButton 					= Button(loadAx, 'Load file', color='lightblue', hovercolor='0.7')
 saveButton					= Button(saveAx, 'Save file', color='lightblue', hovercolor='0.7')
+zoomButton 					= Button(zoomAx, 'Time Auto zoom', color='lightblue', hovercolor='0.7')
 showAllButton 				= Button(showAllAx, 'Show all data', color='lightblue', hovercolor='0.7')
 
+showAutoZoomButton 			= Button(showAutoZoomAx, 'Hide auto zoom window', color='lightgreen', hovercolor='0.7')
+
+zoomButton.on_clicked(auto_zoom_data_graph)
 showAllButton.on_clicked(show_all_data_graph)
 loadButton.on_clicked(lambda x: read_new_timestamps(READ_FROM_FILE))
 saveButton.on_clicked(lambda x: write_timestamps_to_file())
 
+showAutoZoomButton.on_clicked(lambda x: toggle_auto_zoom_window(showAutoZoomButton))
+
 if(serial_port_given):
-	triggerAx             		= plt.axes([0.445, 0.025, 0.1, 0.04])
-	runAx             			= plt.axes([0.545, 0.025, 0.1, 0.04])
+	triggerAx             		= plt.axes([0.53, 0.025, 0.1, 0.04])
+	runAx             			= plt.axes([0.63, 0.025, 0.1, 0.04])
 	readAx             			= plt.axes([0.77, 0.025, 0.1, 0.04])
 	connectionAx 				= plt.axes([0.87, 0.025, 0.1, 0.04])
 

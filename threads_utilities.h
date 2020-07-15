@@ -108,11 +108,28 @@ void dontLogNextCreatedThreadsTimestamps(void);
 const char* setTriggerTimestamps(const char* trigger_name);
 
 /**     
+ * @brief 				Same as setTriggerTimestamps() but callable in a interrupt context
+ * 					
+ * @param trigger_name	Name given for the trigger, for example use __FUNCTION__ to record which function called
+ * 						the trigger.
+ * 						
+ * @return 				Actual name of the trigger. Can be different from the one given as argument if it was already triggered
+ */	
+const char* setTriggerTimestampsI(const char* trigger_name);
+
+/**     
  * @brief 			Removes the trigger of the timestamps functionality to be in run mode. 
  * 					This means the continuous filling works again.
  * 
  */	
 void resetTriggerTimestamps(void);
+
+/**     
+ * @brief 			Same as resetTriggerTimestamps() but callable in a interrupt context
+ * 
+ */	
+void resetTriggerTimestampsI(void);
+
 
 /********************                SHELL FUNCTIONS               ********************/
 

@@ -536,10 +536,11 @@ def redraw_auto_zoom_window(x_nb_values_printed, x_pos):
 			auto_zoom_window_edges.remove()
 		# Prints an area to show the auto zoom window
 		# Resizes the window in order to never be bigger than one third of the timeline
-		if(AUTO_ZOOM_WINDOW_MAX_WIDTH >= x_nb_values_printed/3):
+		auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
+		if(auto_zoom_window_width >= x_nb_values_printed/3):
 			auto_zoom_window_width = x_nb_values_printed/3
-		else:
-			auto_zoom_window_width = AUTO_ZOOM_WINDOW_MAX_WIDTH
+		elif(auto_zoom_window_width < x_nb_values_printed/12):
+			auto_zoom_window_width = x_nb_values_printed/12
 
 		# We need to draw two different objects. One on top of everything for the edges and one behind everything for the infill
 		auto_zoom_window		= gnt.barh(0, auto_zoom_window_width, (len(threads_name_list)+1)*SPACING_Y_TICKS, x_pos-auto_zoom_window_width/2, align='edge', color='0.95', zorder=DRAW_BACK)

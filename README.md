@@ -127,6 +127,13 @@ Add the following lines before the ``CH_CFG_THREAD_EXTRA_FIELDS`` hook
 #define TIMESTAMPS_INCLUDE
 #include "threads_utilities_chconf.h"
 ```
+If you want to specify in which memory section you want the buffers of the threads_timestamp functionality to be declared, you can add a third line in which you tell the section you want to use. In the example below, the .ram0 section is used.
+
+```c
+#define TIMESTAMPS_INCLUDE
+#include "threads_utilities_chconf.h"
+#define THREADS_TIMESTAMP_CUSTOM_RAM_SECTION ".ram0"
+```
 
 Then, for each of the four hooks below, add the four macros ``TIMESTAMPS_THREAD_EXTRA_FIELDS``, ``TIMESTAMPS_THREAD_INIT_HOOK``, ``TIMESTAMPS_THREAD_EXIT_HOOK(tp)`` and ``TIMESTAMPS_CONTEXT_SWITCH_HOOK(ntp, otp)`` to the corresponding hooks:
 

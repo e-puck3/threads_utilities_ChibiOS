@@ -33,7 +33,11 @@ static uint8_t logSetting = THREADS_TIMESTAMPS_DEFAULT_LOG;
 #define TIME_POS			12
 #define TIME_MASK			(0xFFFFF << TIME_POS)
 // Circular buffer containing the timestamps logs
+#ifdef THREADS_TIMESTAMP_CUSTOM_RAM_SECTION
+__attribute__((section(THREADS_TIMESTAMP_CUSTOM_RAM_SECTION))) static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+#else
 static uint32_t _threads_log[THREADS_TIMESTAMPS_LOG_SIZE] = {0};
+#endif
 static uint32_t _fill_pos = 0;
 static uint8_t _pause = false;
 static uint8_t _full = false;
@@ -60,8 +64,13 @@ static int32_t _fill_remaining = 0;
 static char generic_dynamic_thread_name[] = {"Exited dynamic thread"};
 
 // Circular list that keeps traces of the exited thread which still have timestamps in the logs
+#ifdef THREADS_TIMESTAMP_CUSTOM_RAM_SECTION
+__attribute__((section(THREADS_TIMESTAMP_CUSTOM_RAM_SECTION))) static thread_t* _threads_removed_infos[MAX_REMOVED_THREADS] = {NULL};
+__attribute__((section(THREADS_TIMESTAMP_CUSTOM_RAM_SECTION))) static uint8_t _threads_removed[MAX_REMOVED_THREADS] = {0};
+#else
 static thread_t* _threads_removed_infos[MAX_REMOVED_THREADS] = {NULL};
 static uint8_t _threads_removed[MAX_REMOVED_THREADS] = {0};
+#endif
 static uint8_t _threads_removed_pos = 0;
 static uint8_t _next_thread_removed_to_delete = 0;
 static uint8_t _threads_removed_count = 0;
